@@ -42,11 +42,11 @@ type CreateTripRequest struct {
 }
 
 type CreateTripResponse struct {
-	TripID     string           `json:"trip_id"`
-	ShareID    string           `json:"share_id"`
-	Itinerary  []models.Place   `json:"itinerary"`
-	Candidates []models.Place   `json:"candidates"`
-	Route      *models.Route    `json:"route,omitempty"`
+	TripID     string                `json:"trip_id"`
+	ShareID    string                `json:"share_id"`
+	Itinerary  []models.TripPlace    `json:"itinerary"`
+	Candidates []models.TripPlace    `json:"candidates"`
+	Route      *models.Route         `json:"route,omitempty"`
 }
 
 func (h *Handler) CreateTrip(c *gin.Context) {
@@ -166,22 +166,34 @@ func (h *Handler) CreateTrip(c *gin.Context) {
 	}
 
 	// レスポンス作成
-	candidates := []models.Place{}
+	// DBから保存したplacesを取得してTimeRangeを計算
+	savedPlaces, err := h.repo.GetTripPlaces(tripID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{
+			"code":    "DATABASE_ERROR",
+			"message": "スポットの取得に失敗しました",
+		}})
+		return
+	}
+	itinerary := h.convertItineraryFromPlaces(savedPlaces, trip.StartTime)
+
+	candidates := []models.TripPlace{}
 	if cands, ok := mlResp["candidates"].([]interface{}); ok {
 		for _, item := range cands {
 			placeData, ok := item.(map[string]interface{})
 			if !ok {
 				continue
 			}
-			candidates = append(candidates, models.Place{
-				PlaceID:      getString(placeData, "place_id"),
-				Name:         getString(placeData, "name"),
-				Lat:          getFloat64(placeData, "lat"),
-				Lng:          getFloat64(placeData, "lng"),
-				Category:     getString(placeData, "category"),
-				Reason:       getString(placeData, "reason"),
+			candidates = append(candidates, models.TripPlace{
+				PlaceID:       getString(placeData, "place_id"),
+				Name:          getString(placeData, "name"),
+				Lat:           getFloat64(placeData, "lat"),
+				Lng:           getFloat64(placeData, "lng"),
+				Category:      getString(placeData, "category"),
+				Reason:        getString(placeData, "reason"),
 				ReviewSummary: getString(placeData, "review_summary"),
-				PhotoURL:     getString(placeData, "photo_url"),
+				PhotoURL:      getString(placeData, "photo_url"),
+				// TripIDは空（candidatesはDBに保存しない）
 			})
 		}
 	}
@@ -189,7 +201,7 @@ func (h *Handler) CreateTrip(c *gin.Context) {
 	response := CreateTripResponse{
 		TripID:     tripID,
 		ShareID:    shareID,
-		Itinerary:  h.convertItinerary(itineraryData),
+		Itinerary:  itinerary,
 		Candidates: candidates,
 	}
 
@@ -404,61 +416,53 @@ func (h *Handler) callMLService(endpoint string, data interface{}) (map[string]i
 	return result, nil
 }
 
-func (h *Handler) convertItinerary(data []interface{}) []models.Place {
-	result := []models.Place{}
+func (h *Handler) convertItinerary(data []interface{}) []models.TripPlace {
+	result := []models.TripPlace{}
 	for _, item := range data {
 		placeData, ok := item.(map[string]interface{})
 		if !ok {
 			continue
 		}
-		result = append(result, models.Place{
-			ID:           getString(placeData, "id"),
-			PlaceID:      getString(placeData, "place_id"),
-			Name:         getString(placeData, "name"),
-			Lat:          getFloat64(placeData, "lat"),
-			Lng:          getFloat64(placeData, "lng"),
-			Kind:         getString(placeData, "kind"),
-			StayMinutes:  getInt(placeData, "stay_minutes"),
-			OrderIndex:   getInt(placeData, "order_index"),
-			TimeRange:    getString(placeData, "time_range"),
-			Reason:       getString(placeData, "reason"),
+		result = append(result, models.TripPlace{
+			ID:            getString(placeData, "id"),
+			PlaceID:       getString(placeData, "place_id"),
+			Name:          getString(placeData, "name"),
+			Lat:           getFloat64(placeData, "lat"),
+			Lng:           getFloat64(placeData, "lng"),
+			Kind:          getString(placeData, "kind"),
+			StayMinutes:   getInt(placeData, "stay_minutes"),
+			OrderIndex:    getInt(placeData, "order_index"),
+			TimeRange:     getString(placeData, "time_range"),
+			Reason:        getString(placeData, "reason"),
 			ReviewSummary: getString(placeData, "review_summary"),
-			PhotoURL:     getString(placeData, "photo_url"),
+			PhotoURL:      getString(placeData, "photo_url"),
+			Category:      getString(placeData, "category"),
 		})
 	}
 	return result
 }
 
-func (h *Handler) convertItineraryFromPlaces(places []*models.TripPlace, startTime string) []models.Place {
-	result := []models.Place{}
+func (h *Handler) convertItineraryFromPlaces(places []*models.TripPlace, startTime string) []models.TripPlace {
+	result := []models.TripPlace{}
 	currentTime := parseTime(startTime)
 
 	for _, place := range places {
 		timeRange := formatTimeRange(currentTime, place.StayMinutes)
-		result = append(result, models.Place{
-			ID:           place.ID,
-			PlaceID:      place.PlaceID,
-			Name:         place.Name,
-			Lat:          place.Lat,
-			Lng:          place.Lng,
-			Kind:         place.Kind,
-			StayMinutes:  place.StayMinutes,
-			OrderIndex:   place.OrderIndex,
-			TimeRange:    timeRange,
-			Reason:       place.Reason,
-			ReviewSummary: place.ReviewSummary,
-			PhotoURL:     place.PhotoURL,
-		})
+		// TripPlaceのコピーを作成し、TimeRangeを設定
+		placeWithTimeRange := *place
+		placeWithTimeRange.TimeRange = timeRange
+		placeWithTimeRange.TripID = "" // レスポンスではTripIDを除外
+		result = append(result, placeWithTimeRange)
 		currentTime = addMinutes(currentTime, place.StayMinutes)
 	}
 
 	return result
 }
 
-func (h *Handler) calculateTimeline(places []*models.TripPlace, startTime string, mlResp map[string]interface{}) []models.Place {
+func (h *Handler) calculateTimeline(places []*models.TripPlace, startTime string, mlResp map[string]interface{}) []models.TripPlace {
 	// 簡易実装: 移動時間は30分固定（MVP）
 	// 実際にはDirections APIのlegsから取得すべき
-	result := []models.Place{}
+	result := []models.TripPlace{}
 	currentTime := parseTime(startTime)
 
 	for i, place := range places {
@@ -468,20 +472,11 @@ func (h *Handler) calculateTimeline(places []*models.TripPlace, startTime string
 		}
 
 		timeRange := formatTimeRange(currentTime, place.StayMinutes)
-		result = append(result, models.Place{
-			ID:           place.ID,
-			PlaceID:      place.PlaceID,
-			Name:         place.Name,
-			Lat:          place.Lat,
-			Lng:          place.Lng,
-			Kind:         place.Kind,
-			StayMinutes:  place.StayMinutes,
-			OrderIndex:   place.OrderIndex,
-			TimeRange:    timeRange,
-			Reason:       place.Reason,
-			ReviewSummary: place.ReviewSummary,
-			PhotoURL:     place.PhotoURL,
-		})
+		// TripPlaceのコピーを作成し、TimeRangeを設定
+		placeWithTimeRange := *place
+		placeWithTimeRange.TimeRange = timeRange
+		placeWithTimeRange.TripID = "" // レスポンスではTripIDを除外
+		result = append(result, placeWithTimeRange)
 
 		currentTime = addMinutes(currentTime, place.StayMinutes)
 	}
