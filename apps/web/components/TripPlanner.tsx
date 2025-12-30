@@ -69,7 +69,47 @@ export default function TripPlanner() {
       }
 
       const tripData = await response.json()
-      setTrip(tripData)
+      console.log('Trip data received:', tripData)
+      // APIレスポンスの構造を確認して、正しくマッピング
+      const mappedTrip: Trip = {
+        trip_id: tripData.trip_id || tripData.TripID,
+        share_id: tripData.share_id || tripData.ShareID,
+        itinerary: (tripData.itinerary || []).map((place: any) => ({
+          id: place.id || place.ID,
+          place_id: place.place_id || place.PlaceID,
+          name: place.name || place.Name || '',
+          lat: place.lat || place.Lat || 0,
+          lng: place.lng || place.Lng || 0,
+          kind: place.kind || place.Kind,
+          stay_minutes: place.stay_minutes || place.StayMinutes,
+          order_index: place.order_index || place.OrderIndex,
+          time_range: place.time_range || place.TimeRange,
+          reason: place.reason || place.Reason,
+          review_summary: place.review_summary || place.ReviewSummary,
+          photo_url: place.photo_url || place.PhotoURL,
+          category: place.category || place.Category,
+        })),
+        candidates: (tripData.candidates || []).map((place: any) => ({
+          id: place.id || place.ID,
+          place_id: place.place_id || place.PlaceID,
+          name: place.name || place.Name || '',
+          lat: place.lat || place.Lat || 0,
+          lng: place.lng || place.Lng || 0,
+          kind: place.kind || place.Kind,
+          stay_minutes: place.stay_minutes || place.StayMinutes,
+          order_index: place.order_index || place.OrderIndex,
+          time_range: place.time_range || place.TimeRange,
+          reason: place.reason || place.Reason,
+          review_summary: place.review_summary || place.ReviewSummary,
+          photo_url: place.photo_url || place.PhotoURL,
+          category: place.category || place.Category,
+        })),
+        route: tripData.route ? {
+          polyline: tripData.route.polyline || tripData.route.Polyline || '',
+        } : undefined,
+      }
+      console.log('Mapped trip:', mappedTrip)
+      setTrip(mappedTrip)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'エラーが発生しました')
     } finally {

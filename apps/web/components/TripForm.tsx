@@ -16,8 +16,15 @@ const interestTags = [
 ]
 
 const schema = z.object({
-  must_places: z.array(z.string().min(1)).min(1).max(5),
-  interest_tags: z.array(z.string()).min(1),
+  must_places: z.array(z.string())
+    .refine(
+      (arr) => {
+        const validPlaces = arr.filter(p => p.trim() !== '')
+        return validPlaces.length >= 1 && validPlaces.length <= 5
+      },
+      { message: '行きたい場所を1つ以上5つ以内で入力してください' }
+    ),
+  interest_tags: z.array(z.string()).min(1, '少なくとも1つのタグを選択してください'),
   free_text: z.string().optional(),
 })
 
@@ -30,48 +37,63 @@ interface TripFormProps {
 
 export default function TripForm({ onSubmit, loading }: TripFormProps) {
   const [mustPlaces, setMustPlaces] = useState<string[]>([''])
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
 
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
+    defaultValues: {
+      must_places: [''],
+      interest_tags: [],
+    },
   })
+
+  const selectedTags = watch('interest_tags') || []
 
   const addPlaceField = () => {
     if (mustPlaces.length < 5) {
-      setMustPlaces([...mustPlaces, ''])
+      const updated = [...mustPlaces, '']
+      setMustPlaces(updated)
+      setValue('must_places', updated, { shouldValidate: true })
     }
   }
 
   const removePlaceField = (index: number) => {
-    setMustPlaces(mustPlaces.filter((_, i) => i !== index))
+    const updated = mustPlaces.filter((_, i) => i !== index)
+    setMustPlaces(updated)
+    setValue('must_places', updated, { shouldValidate: true })
   }
 
   const updatePlace = (index: number, value: string) => {
     const updated = [...mustPlaces]
     updated[index] = value
     setMustPlaces(updated)
+    setValue('must_places', updated, { shouldValidate: true })
   }
 
   const toggleTag = (tag: string) => {
-    if (selectedTags.includes(tag)) {
-      setSelectedTags(selectedTags.filter(t => t !== tag))
+    const currentTags = selectedTags || []
+    if (currentTags.includes(tag)) {
+      const updatedTags = currentTags.filter(t => t !== tag)
+      setValue('interest_tags', updatedTags, { shouldValidate: true })
     } else {
-      setSelectedTags([...selectedTags, tag])
+      const updatedTags = [...currentTags, tag]
+      setValue('interest_tags', updatedTags, { shouldValidate: true })
     }
   }
 
   const onSubmitForm = (data: FormData) => {
-    const validPlaces = mustPlaces.filter(p => p.trim() !== '')
+    const validPlaces = data.must_places.filter(p => p.trim() !== '')
     if (validPlaces.length === 0) {
       return
     }
     onSubmit({
       must_places: validPlaces,
-      interest_tags: selectedTags,
+      interest_tags: data.interest_tags,
       free_text: data.free_text,
     })
   }
@@ -110,6 +132,11 @@ export default function TripForm({ onSubmit, loading }: TripFormProps) {
           >
             場所を追加
           </button>
+        )}
+        {errors.must_places && (
+          <p className="text-red-500 text-sm mt-1">
+            {errors.must_places.message || '行きたい場所を1つ以上入力してください'}
+          </p>
         )}
       </div>
 

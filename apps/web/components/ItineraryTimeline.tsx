@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -26,7 +26,7 @@ interface ItineraryTimelineProps {
   onReorder: (orderedPlaceIds: string[], stayMinutesMap?: Record<string, number>) => void
 }
 
-function SortableItem({ place }: { place: Place }) {
+function SortableItem({ place, index }: { place: Place; index: number }) {
   const {
     attributes,
     listeners,
@@ -34,7 +34,7 @@ function SortableItem({ place }: { place: Place }) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: place.id || place.place_id })
+  } = useSortable({ id: place.id || place.place_id || `place-${index}` })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -51,16 +51,19 @@ function SortableItem({ place }: { place: Place }) {
       {...listeners}
     >
       <div className="flex justify-between items-start">
-        <div>
-          <h3 className="font-semibold">{place.name}</h3>
+        <div className="flex-1">
+          <h3 className="font-semibold">{place.name || '名前不明のスポット'}</h3>
           {place.time_range && (
             <p className="text-sm text-gray-600">{place.time_range}</p>
           )}
           {place.reason && (
             <p className="text-sm text-gray-500 mt-1">{place.reason}</p>
           )}
+          {!place.name && !place.time_range && !place.reason && (
+            <p className="text-sm text-gray-500 mt-1">詳細情報がありません</p>
+          )}
         </div>
-        <span className="text-xs bg-blue-100 px-2 py-1 rounded">
+        <span className="text-xs bg-blue-100 px-2 py-1 rounded ml-2">
           {place.kind === 'must' ? '必須' : place.kind === 'start' ? '出発' : 'おすすめ'}
         </span>
       </div>
@@ -70,6 +73,11 @@ function SortableItem({ place }: { place: Place }) {
 
 export default function ItineraryTimeline({ itinerary, onReorder }: ItineraryTimelineProps) {
   const [items, setItems] = useState(itinerary)
+
+  // itineraryが変更されたらitemsを更新
+  useEffect(() => {
+    setItems(itinerary)
+  }, [itinerary])
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -109,11 +117,11 @@ export default function ItineraryTimeline({ itinerary, onReorder }: ItineraryTim
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={items.map(item => item.id || item.place_id)}
+          items={items.map((item, index) => item.id || item.place_id || `item-${index}`)}
           strategy={verticalListSortingStrategy}
         >
-          {items.map((place) => (
-            <SortableItem key={place.id || place.place_id} place={place} />
+          {items.map((place, index) => (
+            <SortableItem key={place.id || place.place_id || `place-${index}`} place={place} index={index} />
           ))}
         </SortableContext>
       </DndContext>

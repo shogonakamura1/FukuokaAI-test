@@ -21,11 +21,29 @@
 - 共有URLでの閲覧（ログイン不要）
   - 生成された旅程は `/share/[share_id]` で誰でも閲覧可能
 
+## クイックスタート
+
+**最も簡単な方法（Docker Compose）:**
+
+```bash
+# 1. 環境変数を設定
+cp .env.example .env
+# .envファイルを編集してAPIキーを設定
+
+# 2. 起動
+docker-compose up --build
+
+# 3. ブラウザで http://localhost:3000 にアクセス
+```
+
+詳細な手順は [SETUP.md](./SETUP.md) を参照してください。
+
 ## セットアップ
 
 ### 前提条件
 
-- Docker & Docker Compose
+- Docker & Docker Compose（推奨）
+- または Node.js 20+, Go 1.21+, Python 3.11+
 - Google Maps Platform API キー
 - OpenAI API キー
 - Google OAuth クライアントID/シークレット（NextAuth用）

@@ -16,19 +16,19 @@ export default function CandidateList({ candidates, onAdopt }: CandidateListProp
     <div className="mt-8">
       <h2 className="text-xl font-bold mb-4">おすすめスポット</h2>
       <div className="space-y-4">
-        {candidates.map((candidate) => (
+        {candidates.map((candidate, index) => (
           <div
-            key={candidate.place_id}
+            key={candidate.place_id || `candidate-${index}`}
             className="bg-white p-4 rounded shadow"
           >
             {candidate.photo_url && (
               <img
                 src={candidate.photo_url}
-                alt={candidate.name}
+                alt={candidate.name || 'スポット画像'}
                 className="w-full h-48 object-cover rounded mb-3"
               />
             )}
-            <h3 className="font-semibold text-lg">{candidate.name}</h3>
+            <h3 className="font-semibold text-lg">{candidate.name || '名前不明のスポット'}</h3>
             {candidate.category && (
               <span className="text-sm text-gray-600">{candidate.category}</span>
             )}
@@ -37,6 +37,9 @@ export default function CandidateList({ candidates, onAdopt }: CandidateListProp
             )}
             {candidate.review_summary && (
               <p className="text-xs text-gray-500 mt-1">{candidate.review_summary}</p>
+            )}
+            {!candidate.name && !candidate.reason && !candidate.review_summary && (
+              <p className="text-sm text-gray-500 mt-2">詳細情報がありません</p>
             )}
             <button
               onClick={() => onAdopt(candidate)}

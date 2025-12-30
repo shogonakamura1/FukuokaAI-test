@@ -73,7 +73,7 @@ export default function SharePage() {
           ) : (
             <div className="space-y-2">
               {itinerary.map((place, index) => (
-                <div key={place.id || place.place_id} className="bg-white p-4 rounded shadow">
+                <div key={place.id || place.place_id || `place-${index}`} className="bg-white p-4 rounded shadow">
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-semibold">{place.name}</h3>

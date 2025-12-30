@@ -69,10 +69,12 @@ async def recommend(request: RecommendRequest):
         )
 
         # 3. ルート上の推薦スポット探索
+        # must_placesの座標を渡して、近くを優先的に検索
         candidates = await places_service.find_recommended_places(
             route_polyline=route_result["polyline"],
             interest_tags=request.interest_tags,
-            exclude_place_ids=[p["place_id"] for p in must_places]
+            exclude_place_ids=[p["place_id"] for p in must_places],
+            priority_locations=[{"lat": p["lat"], "lng": p["lng"]} for p in must_places]
         )
 
         # 4. Place Detailsで詳細取得

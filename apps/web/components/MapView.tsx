@@ -27,10 +27,16 @@ export default function MapView({ itinerary, route }: MapViewProps) {
       return defaultCenter
     }
     const firstPlace = itinerary[0]
-    return {
-      lat: firstPlace.lat,
-      lng: firstPlace.lng,
+    // latとlngが数値であることを確認
+    if (typeof firstPlace.lat === 'number' && typeof firstPlace.lng === 'number' && 
+        !isNaN(firstPlace.lat) && !isNaN(firstPlace.lng) &&
+        isFinite(firstPlace.lat) && isFinite(firstPlace.lng)) {
+      return {
+        lat: firstPlace.lat,
+        lng: firstPlace.lng,
+      }
     }
+    return defaultCenter
   }, [itinerary])
 
   const decodePolyline = (encoded: string) => {
@@ -89,14 +95,20 @@ export default function MapView({ itinerary, route }: MapViewProps) {
         center={mapCenter}
         zoom={12}
       >
-        {itinerary.map((place, index) => (
-          <Marker
-            key={place.id || place.place_id}
-            position={{ lat: place.lat, lng: place.lng }}
-            label={String(index + 1)}
-            title={place.name}
-          />
-        ))}
+        {itinerary
+          .filter(place => 
+            typeof place.lat === 'number' && typeof place.lng === 'number' &&
+            !isNaN(place.lat) && !isNaN(place.lng) &&
+            isFinite(place.lat) && isFinite(place.lng)
+          )
+          .map((place, index) => (
+            <Marker
+              key={place.id || place.place_id || `marker-${index}`}
+              position={{ lat: place.lat, lng: place.lng }}
+              label={String(index + 1)}
+              title={place.name}
+            />
+          ))}
         {routePath.length > 0 && (
           <Polyline
             path={routePath}
