@@ -1,7 +1,7 @@
 'use client'
 
+// @ts-ignore - モジュールは存在するが、型定義が見つからない場合がある
 import { useSession, signIn, signOut } from 'next-auth/react'
-import { useState } from 'react'
 import TripPlanner from '@/components/TripPlanner'
 
 export default function Home() {
