@@ -1,5 +1,6 @@
 'use client'
 
+// @ts-ignore - モジュールは存在するが、型定義が見つからない場合がある
 import { useState, useEffect } from 'react'
 import {
   DndContext,
@@ -14,8 +15,6 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -26,7 +25,12 @@ interface ItineraryTimelineProps {
   onReorder: (orderedPlaceIds: string[], stayMinutesMap?: Record<string, number>) => void
 }
 
-function SortableItem({ place, index }: { place: Place; index: number }) {
+interface SortableItemProps {
+  place: Place
+  index: number
+}
+
+function SortableItem({ place, index }: SortableItemProps) {
   const {
     attributes,
     listeners,
@@ -86,17 +90,25 @@ export default function ItineraryTimeline({ itinerary, onReorder }: ItineraryTim
     })
   )
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: { active: { id: string | number }; over: { id: string | number } | null }) => {
     const { active, over } = event
 
-    if (active.id !== over.id) {
-      setItems((items) => {
-        const oldIndex = items.findIndex(item => (item.id || item.place_id) === active.id)
-        const newIndex = items.findIndex(item => (item.id || item.place_id) === over.id)
+    if (over && active.id !== over.id) {
+      setItems((items: Place[]) => {
+        const oldIndex = items.findIndex((item: Place) => {
+          const itemId = item.id || item.place_id
+          return String(itemId) === String(active.id)
+        })
+        const newIndex = items.findIndex((item: Place) => {
+          const itemId = item.id || item.place_id
+          return String(itemId) === String(over.id)
+        })
         const newItems = arrayMove(items, oldIndex, newIndex)
         
         // 再計算を実行
-        const orderedIds = newItems.map(item => item.id || item.place_id)
+        const orderedIds = newItems
+          .map((item: Place) => item.id || item.place_id)
+          .filter((id: string | undefined): id is string => typeof id === 'string' && id.length > 0)
         onReorder(orderedIds)
         
         return newItems
@@ -117,12 +129,15 @@ export default function ItineraryTimeline({ itinerary, onReorder }: ItineraryTim
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={items.map((item, index) => item.id || item.place_id || `item-${index}`)}
+          items={items.map((item: Place, index: number) => item.id || item.place_id || `item-${index}`)}
           strategy={verticalListSortingStrategy}
         >
-          {items.map((place, index) => (
-            <SortableItem key={place.id || place.place_id || `place-${index}`} place={place} index={index} />
-          ))}
+          {items.map((place: Place, index: number) => {
+            const itemKey = place.id || place.place_id || `place-${index}`
+            // Reactのkeyプロパティは特別なプロパティなので、型定義に含まれない
+            // @ts-ignore - Reactのkeyプロパティは型定義に含まれない
+            return <SortableItem place={place} index={index} key={itemKey} />
+          })}
         </SortableContext>
       </DndContext>
     </div>

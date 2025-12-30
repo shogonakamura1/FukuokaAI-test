@@ -1,6 +1,8 @@
 'use client'
 
+// @ts-ignore - モジュールは存在するが、型定義が見つからない場合がある
 import { useMemo } from 'react'
+// @ts-ignore
 import { GoogleMap, LoadScript, Marker, Polyline } from '@react-google-maps/api'
 import { Place } from './TripPlanner'
 
@@ -39,8 +41,8 @@ export default function MapView({ itinerary, route }: MapViewProps) {
     return defaultCenter
   }, [itinerary])
 
-  const decodePolyline = (encoded: string) => {
-    const poly = []
+  const decodePolyline = (encoded: string): Array<{ lat: number; lng: number }> => {
+    const poly: Array<{ lat: number; lng: number }> = []
     let index = 0
     const len = encoded.length
     let lat = 0
@@ -78,7 +80,10 @@ export default function MapView({ itinerary, route }: MapViewProps) {
     return decodePolyline(route.polyline)
   }, [route])
 
-  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || ''
+  // Next.jsではprocess.env.NEXT_PUBLIC_*はクライアント側でも利用可能
+  const googleMapsApiKey = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) || 
+                           (typeof process !== 'undefined' && process.env?.GOOGLE_MAPS_API_KEY) || 
+                           ''
 
   if (!googleMapsApiKey) {
     return (

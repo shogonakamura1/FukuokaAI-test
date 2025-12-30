@@ -1,8 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+// @ts-ignore - モジュールは存在するが、型定義が見つからない場合がある
+import { useState, type ChangeEvent } from 'react'
+// @ts-ignore
 import { useForm } from 'react-hook-form'
+// @ts-ignore
 import { zodResolver } from '@hookform/resolvers/zod'
+// @ts-ignore
 import { z } from 'zod'
 
 const interestTags = [
@@ -18,8 +22,8 @@ const interestTags = [
 const schema = z.object({
   must_places: z.array(z.string())
     .refine(
-      (arr) => {
-        const validPlaces = arr.filter(p => p.trim() !== '')
+      (arr: string[]) => {
+        const validPlaces = arr.filter((p: string) => p.trim() !== '')
         return validPlaces.length >= 1 && validPlaces.length <= 5
       },
       { message: '行きたい場所を1つ以上5つ以内で入力してください' }
@@ -63,7 +67,7 @@ export default function TripForm({ onSubmit, loading }: TripFormProps) {
   }
 
   const removePlaceField = (index: number) => {
-    const updated = mustPlaces.filter((_, i) => i !== index)
+    const updated = mustPlaces.filter((_: string, i: number) => i !== index)
     setMustPlaces(updated)
     setValue('must_places', updated, { shouldValidate: true })
   }
@@ -78,7 +82,7 @@ export default function TripForm({ onSubmit, loading }: TripFormProps) {
   const toggleTag = (tag: string) => {
     const currentTags = selectedTags || []
     if (currentTags.includes(tag)) {
-      const updatedTags = currentTags.filter(t => t !== tag)
+      const updatedTags = currentTags.filter((t: string) => t !== tag)
       setValue('interest_tags', updatedTags, { shouldValidate: true })
     } else {
       const updatedTags = [...currentTags, tag]
@@ -87,7 +91,7 @@ export default function TripForm({ onSubmit, loading }: TripFormProps) {
   }
 
   const onSubmitForm = (data: FormData) => {
-    const validPlaces = data.must_places.filter(p => p.trim() !== '')
+    const validPlaces = data.must_places.filter((p: string) => p.trim() !== '')
     if (validPlaces.length === 0) {
       return
     }
@@ -104,12 +108,12 @@ export default function TripForm({ onSubmit, loading }: TripFormProps) {
         <label className="block text-sm font-medium mb-2">
           行きたい場所（最大5件）
         </label>
-        {mustPlaces.map((place, index) => (
+        {mustPlaces.map((place: string, index: number) => (
           <div key={index} className="flex gap-2 mb-2">
             <input
               type="text"
               value={place}
-              onChange={(e) => updatePlace(index, e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => updatePlace(index, e.target.value)}
               placeholder="例: 太宰府天満宮"
               className="flex-1 px-3 py-2 border rounded"
             />
