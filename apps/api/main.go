@@ -4,8 +4,11 @@ import (
 	"log"
 	"os"
 
-	"fukuoka-ai-api/internal/database"
-	"fukuoka-ai-api/internal/handlers"
+	"fukuoka-ai-api/delivery/controller"
+	"fukuoka-ai-api/infrastructure/database"
+	"fukuoka-ai-api/infrastructure/mlservice"
+	infraRepo "fukuoka-ai-api/infrastructure/repository"
+	"fukuoka-ai-api/usecase"
 
 	"github.com/gin-gonic/gin"
 )
@@ -44,13 +47,17 @@ func main() {
 		c.Next()
 	})
 
-	h := handlers.NewHandler(db, mlServiceURL)
+	// 依存関係の注入
+	tripRepo := infraRepo.NewTripRepository(db)
+	mlService := mlservice.NewMLService(mlServiceURL)
+	tripUsecase := usecase.NewTripUsecase(tripRepo, mlService)
+	tripController := controller.NewTripController(tripUsecase)
 
 	v1 := router.Group("/v1")
 	{
-		v1.POST("/trips", h.CreateTrip)
-		v1.POST("/trips/:trip_id/recompute", h.RecomputeTrip)
-		v1.GET("/shares/:share_id", h.GetShare)
+		v1.POST("/trips", tripController.CreateTrip)
+		v1.POST("/trips/:trip_id/recompute", tripController.RecomputeTrip)
+		v1.GET("/shares/:share_id", tripController.GetShare)
 	}
 
 	port := os.Getenv("PORT")
@@ -63,5 +70,3 @@ func main() {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
-
-

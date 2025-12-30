@@ -1,40 +1,14 @@
-package handlers
+package usecase
 
 import (
 	"fmt"
 	"strings"
 
-	"fukuoka-ai-api/internal/models"
+	"fukuoka-ai-api/domain/entity"
 )
 
-func (h *Handler) convertItinerary(data []interface{}) []models.TripPlace {
-	result := []models.TripPlace{}
-	for _, item := range data {
-		placeData, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		result = append(result, models.TripPlace{
-			ID:            getString(placeData, "id"),
-			PlaceID:       getString(placeData, "place_id"),
-			Name:          getString(placeData, "name"),
-			Lat:           getFloat64(placeData, "lat"),
-			Lng:           getFloat64(placeData, "lng"),
-			Kind:          getString(placeData, "kind"),
-			StayMinutes:   getInt(placeData, "stay_minutes"),
-			OrderIndex:    getInt(placeData, "order_index"),
-			TimeRange:     getString(placeData, "time_range"),
-			Reason:        getString(placeData, "reason"),
-			ReviewSummary: getString(placeData, "review_summary"),
-			PhotoURL:      getString(placeData, "photo_url"),
-			Category:      getString(placeData, "category"),
-		})
-	}
-	return result
-}
-
-func (h *Handler) convertItineraryFromPlaces(places []*models.TripPlace, startTime string) []models.TripPlace {
-	result := []models.TripPlace{}
+func convertItineraryFromPlaces(places []*entity.TripPlace, startTime string) []entity.TripPlace {
+	result := []entity.TripPlace{}
 	currentTime := parseTime(startTime)
 
 	for _, place := range places {
@@ -50,10 +24,10 @@ func (h *Handler) convertItineraryFromPlaces(places []*models.TripPlace, startTi
 	return result
 }
 
-func (h *Handler) calculateTimeline(places []*models.TripPlace, startTime string, mlResp map[string]interface{}) []models.TripPlace {
+func calculateTimeline(places []*entity.TripPlace, startTime string, mlResp map[string]interface{}) []entity.TripPlace {
 	// 簡易実装: 移動時間は30分固定（MVP）
 	// 実際にはDirections APIのlegsから取得すべき
-	result := []models.TripPlace{}
+	result := []entity.TripPlace{}
 	currentTime := parseTime(startTime)
 
 	for i, place := range places {

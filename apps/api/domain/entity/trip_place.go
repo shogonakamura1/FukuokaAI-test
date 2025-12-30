@@ -1,17 +1,4 @@
-package models
-
-type User struct {
-	ID        string
-	CreatedAt string
-}
-
-type Trip struct {
-	ID        string
-	UserID    string
-	Title     string
-	StartTime string
-	CreatedAt string
-}
+package entity
 
 type TripPlace struct {
 	ID            string  `json:"id,omitempty"`
@@ -29,15 +16,4 @@ type TripPlace struct {
 	PhotoURL      string  `json:"photo_url,omitempty"`
 	Category      string  `json:"category,omitempty"` // レスポンス用（DBには保存しない）
 }
-
-type Share struct {
-	ShareID   string
-	TripID    string
-	CreatedAt string
-}
-
-type Route struct {
-	Polyline string
-}
-
 
