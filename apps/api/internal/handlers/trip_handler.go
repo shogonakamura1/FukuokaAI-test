@@ -1,39 +1,14 @@
 package handlers
 
 import (
-	"database/sql"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"strings"
 
 	"fukuoka-ai-api/internal/models"
-	"fukuoka-ai-api/internal/repository"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
-
-type Handler struct {
-	db          *sql.DB
-	mlServiceURL string
-	repo        *repository.Repository
-}
-
-func NewHandler(db *sql.DB, mlServiceURL string) *Handler {
-	return &Handler{
-		db:          db,
-		mlServiceURL: mlServiceURL,
-		repo:        repository.NewRepository(db),
-	}
-}
-
-func (h *Handler) getUserID(c *gin.Context) string {
-	// MVP: 簡易的なuser_idヘッダから取得
-	// 本番ではIDトークン検証が必要
-	return c.GetHeader("X-User-Id")
-}
 
 type CreateTripRequest struct {
 	MustPlaces   []string `json:"must_places"`
@@ -42,11 +17,11 @@ type CreateTripRequest struct {
 }
 
 type CreateTripResponse struct {
-	TripID     string                `json:"trip_id"`
-	ShareID    string                `json:"share_id"`
-	Itinerary  []models.TripPlace    `json:"itinerary"`
-	Candidates []models.TripPlace    `json:"candidates"`
-	Route      *models.Route         `json:"route,omitempty"`
+	TripID     string             `json:"trip_id"`
+	ShareID    string             `json:"share_id"`
+	Itinerary  []models.TripPlace `json:"itinerary"`
+	Candidates []models.TripPlace `json:"candidates"`
+	Route      *models.Route      `json:"route,omitempty"`
 }
 
 func (h *Handler) CreateTrip(c *gin.Context) {
@@ -215,8 +190,8 @@ func (h *Handler) CreateTrip(c *gin.Context) {
 }
 
 type RecomputeTripRequest struct {
-	OrderedPlaceIDs []string          `json:"ordered_place_ids"`
-	StayMinutesMap  map[string]int    `json:"stay_minutes_map,omitempty"`
+	OrderedPlaceIDs []string       `json:"ordered_place_ids"`
+	StayMinutesMap  map[string]int `json:"stay_minutes_map,omitempty"`
 }
 
 func (h *Handler) RecomputeTrip(c *gin.Context) {
@@ -293,7 +268,7 @@ func (h *Handler) RecomputeTrip(c *gin.Context) {
 	}
 
 	mlReq := map[string]interface{}{
-		"start":    "Hakata Station",
+		"start":     "Hakata Station",
 		"waypoints": waypoints,
 	}
 
@@ -320,215 +295,5 @@ func (h *Handler) RecomputeTrip(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
-}
-
-func (h *Handler) GetShare(c *gin.Context) {
-	shareID := c.Param("share_id")
-
-	trip, err := h.repo.GetTripByShareID(shareID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{
-			"code":    "NOT_FOUND",
-			"message": "共有された旅程が見つかりません",
-		}})
-		return
-	}
-
-	places, err := h.repo.GetTripPlaces(trip.ID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{
-			"code":    "DATABASE_ERROR",
-			"message": "スポットの取得に失敗しました",
-		}})
-		return
-	}
-
-	itinerary := h.convertItineraryFromPlaces(places, trip.StartTime)
-
-	// ルートを再計算
-	waypoints := []map[string]float64{}
-	for _, place := range places {
-		waypoints = append(waypoints, map[string]float64{
-			"lat": place.Lat,
-			"lng": place.Lng,
-		})
-	}
-
-	var routePolyline string
-	if len(waypoints) > 0 {
-		mlReq := map[string]interface{}{
-			"start":    "Hakata Station",
-			"waypoints": waypoints,
-		}
-		mlResp, err := h.callMLService("/recompute-route", mlReq)
-		if err == nil {
-			if route, ok := mlResp["route"].(map[string]interface{}); ok {
-				if polyline, ok := route["polyline"].(string); ok {
-					routePolyline = polyline
-				}
-			}
-		}
-	}
-
-	response := gin.H{
-		"trip": gin.H{
-			"id":         trip.ID,
-			"title":      trip.Title,
-			"start_time": trip.StartTime,
-		},
-		"itinerary": itinerary,
-	}
-
-	if routePolyline != "" {
-		response["route"] = gin.H{"polyline": routePolyline}
-	}
-
-	c.JSON(http.StatusOK, response)
-}
-
-func (h *Handler) callMLService(endpoint string, data interface{}) (map[string]interface{}, error) {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-
-	url := h.mlServiceURL + endpoint
-	resp, err := http.Post(url, "application/json", strings.NewReader(string(jsonData)))
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ML service returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var result map[string]interface{}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-func (h *Handler) convertItinerary(data []interface{}) []models.TripPlace {
-	result := []models.TripPlace{}
-	for _, item := range data {
-		placeData, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		result = append(result, models.TripPlace{
-			ID:            getString(placeData, "id"),
-			PlaceID:       getString(placeData, "place_id"),
-			Name:          getString(placeData, "name"),
-			Lat:           getFloat64(placeData, "lat"),
-			Lng:           getFloat64(placeData, "lng"),
-			Kind:          getString(placeData, "kind"),
-			StayMinutes:   getInt(placeData, "stay_minutes"),
-			OrderIndex:    getInt(placeData, "order_index"),
-			TimeRange:     getString(placeData, "time_range"),
-			Reason:        getString(placeData, "reason"),
-			ReviewSummary: getString(placeData, "review_summary"),
-			PhotoURL:      getString(placeData, "photo_url"),
-			Category:      getString(placeData, "category"),
-		})
-	}
-	return result
-}
-
-func (h *Handler) convertItineraryFromPlaces(places []*models.TripPlace, startTime string) []models.TripPlace {
-	result := []models.TripPlace{}
-	currentTime := parseTime(startTime)
-
-	for _, place := range places {
-		timeRange := formatTimeRange(currentTime, place.StayMinutes)
-		// TripPlaceのコピーを作成し、TimeRangeを設定
-		placeWithTimeRange := *place
-		placeWithTimeRange.TimeRange = timeRange
-		placeWithTimeRange.TripID = "" // レスポンスではTripIDを除外
-		result = append(result, placeWithTimeRange)
-		currentTime = addMinutes(currentTime, place.StayMinutes)
-	}
-
-	return result
-}
-
-func (h *Handler) calculateTimeline(places []*models.TripPlace, startTime string, mlResp map[string]interface{}) []models.TripPlace {
-	// 簡易実装: 移動時間は30分固定（MVP）
-	// 実際にはDirections APIのlegsから取得すべき
-	result := []models.TripPlace{}
-	currentTime := parseTime(startTime)
-
-	for i, place := range places {
-		if i > 0 {
-			// 移動時間（30分固定、MVP）
-			currentTime = addMinutes(currentTime, 30)
-		}
-
-		timeRange := formatTimeRange(currentTime, place.StayMinutes)
-		// TripPlaceのコピーを作成し、TimeRangeを設定
-		placeWithTimeRange := *place
-		placeWithTimeRange.TimeRange = timeRange
-		placeWithTimeRange.TripID = "" // レスポンスではTripIDを除外
-		result = append(result, placeWithTimeRange)
-
-		currentTime = addMinutes(currentTime, place.StayMinutes)
-	}
-
-	return result
-}
-
-// ヘルパー関数
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key].(string); ok {
-		return v
-	}
-	return ""
-}
-
-func getInt(m map[string]interface{}, key string) int {
-	if v, ok := m[key].(float64); ok {
-		return int(v)
-	}
-	return 0
-}
-
-func getFloat64(m map[string]interface{}, key string) float64 {
-	if v, ok := m[key].(float64); ok {
-		return v
-	}
-	return 0.0
-}
-
-func parseTime(timeStr string) int {
-	// "10:00" -> 600 (分)
-	parts := strings.Split(timeStr, ":")
-	if len(parts) != 2 {
-		return 600 // デフォルト10:00
-	}
-	hours := 0
-	minutes := 0
-	fmt.Sscanf(parts[0], "%d", &hours)
-	fmt.Sscanf(parts[1], "%d", &minutes)
-	return hours*60 + minutes
-}
-
-func addMinutes(timeMinutes int, minutes int) int {
-	return timeMinutes + minutes
-}
-
-func formatTimeRange(startMinutes int, durationMinutes int) string {
-	startHour := startMinutes / 60
-	startMin := startMinutes % 60
-	endMinutes := startMinutes + durationMinutes
-	endHour := endMinutes / 60
-	endMin := endMinutes % 60
-	return fmt.Sprintf("%02d:%02d-%02d:%02d", startHour, startMin, endHour, endMin)
 }
 
