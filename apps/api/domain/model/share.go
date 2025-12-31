@@ -1,4 +1,4 @@
-package entity
+package model
 
 type Share struct {
 	ShareID   string

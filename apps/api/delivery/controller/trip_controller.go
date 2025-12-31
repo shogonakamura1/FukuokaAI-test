@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"fukuoka-ai-api/domain/entity"
+	"fukuoka-ai-api/domain/model"
 	"fukuoka-ai-api/usecase"
 
 	"github.com/gin-gonic/gin"
@@ -35,9 +35,9 @@ type CreateTripRequest struct {
 type CreateTripResponse struct {
 	TripID     string            `json:"trip_id"`
 	ShareID    string            `json:"share_id"`
-	Itinerary  []entity.TripPlace `json:"itinerary"`
-	Candidates []entity.TripPlace `json:"candidates"`
-	Route      *entity.Route      `json:"route,omitempty"`
+	Itinerary  []model.TripPlace `json:"itinerary"`
+	Candidates []model.TripPlace `json:"candidates"`
+	Route      *model.Route      `json:"route,omitempty"`
 }
 
 func (c *TripController) CreateTrip(ctx *gin.Context) {

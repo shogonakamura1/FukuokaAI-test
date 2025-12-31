@@ -3,7 +3,7 @@ package repository
 import (
 	"database/sql"
 
-	"fukuoka-ai-api/domain/entity"
+	"fukuoka-ai-api/domain/model"
 	"fukuoka-ai-api/domain/repository"
 )
 
@@ -23,7 +23,7 @@ func (r *tripRepository) EnsureUser(userID string) error {
 	return err
 }
 
-func (r *tripRepository) CreateTrip(trip *entity.Trip) error {
+func (r *tripRepository) CreateTrip(trip *model.Trip) error {
 	_, err := r.db.Exec(
 		"INSERT INTO trips (id, user_id, title, start_time) VALUES (?, ?, ?, ?)",
 		trip.ID, trip.UserID, trip.Title, trip.StartTime,
@@ -31,8 +31,8 @@ func (r *tripRepository) CreateTrip(trip *entity.Trip) error {
 	return err
 }
 
-func (r *tripRepository) GetTrip(tripID string) (*entity.Trip, error) {
-	trip := &entity.Trip{}
+func (r *tripRepository) GetTrip(tripID string) (*model.Trip, error) {
+	trip := &model.Trip{}
 	err := r.db.QueryRow(
 		"SELECT id, user_id, title, start_time, created_at FROM trips WHERE id = ?",
 		tripID,
@@ -43,8 +43,8 @@ func (r *tripRepository) GetTrip(tripID string) (*entity.Trip, error) {
 	return trip, nil
 }
 
-func (r *tripRepository) GetTripByShareID(shareID string) (*entity.Trip, error) {
-	trip := &entity.Trip{}
+func (r *tripRepository) GetTripByShareID(shareID string) (*model.Trip, error) {
+	trip := &model.Trip{}
 	err := r.db.QueryRow(
 		`SELECT t.id, t.user_id, t.title, t.start_time, t.created_at 
 		 FROM trips t 
@@ -58,7 +58,7 @@ func (r *tripRepository) GetTripByShareID(shareID string) (*entity.Trip, error) 
 	return trip, nil
 }
 
-func (r *tripRepository) CreateTripPlace(place *entity.TripPlace) error {
+func (r *tripRepository) CreateTripPlace(place *model.TripPlace) error {
 	_, err := r.db.Exec(
 		`INSERT INTO trip_places 
 		 (id, trip_id, place_id, name, lat, lng, kind, stay_minutes, order_index, reason, review_summary, photo_url) 
@@ -69,7 +69,7 @@ func (r *tripRepository) CreateTripPlace(place *entity.TripPlace) error {
 	return err
 }
 
-func (r *tripRepository) GetTripPlaces(tripID string) ([]*entity.TripPlace, error) {
+func (r *tripRepository) GetTripPlaces(tripID string) ([]*model.TripPlace, error) {
 	rows, err := r.db.Query(
 		`SELECT id, trip_id, place_id, name, lat, lng, kind, stay_minutes, order_index, reason, review_summary, photo_url 
 		 FROM trip_places 
@@ -82,9 +82,9 @@ func (r *tripRepository) GetTripPlaces(tripID string) ([]*entity.TripPlace, erro
 	}
 	defer rows.Close()
 
-	places := []*entity.TripPlace{}
+	places := []*model.TripPlace{}
 	for rows.Next() {
-		place := &entity.TripPlace{}
+		place := &model.TripPlace{}
 		err := rows.Scan(
 			&place.ID, &place.TripID, &place.PlaceID, &place.Name,
 			&place.Lat, &place.Lng, &place.Kind, &place.StayMinutes,
@@ -98,9 +98,9 @@ func (r *tripRepository) GetTripPlaces(tripID string) ([]*entity.TripPlace, erro
 	return places, nil
 }
 
-func (r *tripRepository) GetTripPlacesByIDs(tripID string, placeIDs []string) ([]*entity.TripPlace, error) {
+func (r *tripRepository) GetTripPlacesByIDs(tripID string, placeIDs []string) ([]*model.TripPlace, error) {
 	if len(placeIDs) == 0 {
-		return []*entity.TripPlace{}, nil
+		return []*model.TripPlace{}, nil
 	}
 
 	query := `SELECT id, trip_id, place_id, name, lat, lng, kind, stay_minutes, order_index, reason, review_summary, photo_url 
@@ -122,10 +122,10 @@ func (r *tripRepository) GetTripPlacesByIDs(tripID string, placeIDs []string) ([
 	}
 	defer rows.Close()
 
-	places := []*entity.TripPlace{}
-	placeMap := make(map[string]*entity.TripPlace)
+	places := []*model.TripPlace{}
+	placeMap := make(map[string]*model.TripPlace)
 	for rows.Next() {
-		place := &entity.TripPlace{}
+		place := &model.TripPlace{}
 		err := rows.Scan(
 			&place.ID, &place.TripID, &place.PlaceID, &place.Name,
 			&place.Lat, &place.Lng, &place.Kind, &place.StayMinutes,
@@ -147,7 +147,7 @@ func (r *tripRepository) GetTripPlacesByIDs(tripID string, placeIDs []string) ([
 	return places, nil
 }
 
-func (r *tripRepository) UpdateTripPlace(place *entity.TripPlace) error {
+func (r *tripRepository) UpdateTripPlace(place *model.TripPlace) error {
 	_, err := r.db.Exec(
 		`UPDATE trip_places 
 		 SET stay_minutes = ?, order_index = ? 

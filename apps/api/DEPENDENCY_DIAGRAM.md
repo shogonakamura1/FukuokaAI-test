@@ -59,7 +59,7 @@
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │   Entity     │  │  Repository  │  │   Service    │         │
+│  │   Model      │  │  Repository  │  │   Service    │         │
 │  │              │  │  Interface   │  │  Interface   │         │
 │  │ - User       │  │              │  │              │         │
 │  │ - Trip       │  │ TripRepository│ │ MLService    │         │
@@ -88,7 +88,7 @@ main.go
 ```
 TripController
   ├─→ usecase.TripUsecase
-  └─→ domain/entity (レスポンス用)
+  └─→ domain/model (レスポンス用)
 ```
 
 ### 3. Usecase Layer (usecase)
@@ -96,14 +96,14 @@ TripController
 TripUsecase
   ├─→ domain/repository.TripRepository (interface)
   ├─→ domain/service.MLService (interface)
-  └─→ domain/entity
+  └─→ domain/model
 ```
 
 ### 4. Infrastructure Layer (infrastructure)
 ```
 TripRepository (実装)
   ├─→ domain/repository.TripRepository (interfaceを実装)
-  └─→ domain/entity
+  └─→ domain/model
 
 MLService (実装)
   └─→ domain/service.MLService (interfaceを実装)
@@ -118,7 +118,7 @@ Entity
   └─→ (依存なし)
 
 Repository Interface
-  └─→ domain/entity
+  └─→ domain/model
 
 Service Interface
   └─→ (依存なし)

@@ -3,7 +3,7 @@ package usecase
 import (
 	"fmt"
 
-	"fukuoka-ai-api/domain/entity"
+	"fukuoka-ai-api/domain/model"
 	"fukuoka-ai-api/domain/repository"
 	"fukuoka-ai-api/domain/service"
 
@@ -31,9 +31,9 @@ func NewTripUsecase(tripRepo repository.TripRepository, mlService service.MLServ
 type CreateTripOutput struct {
 	TripID     string
 	ShareID    string
-	Itinerary  []entity.TripPlace
-	Candidates []entity.TripPlace
-	Route      *entity.Route
+	Itinerary  []model.TripPlace
+	Candidates []model.TripPlace
+	Route      *model.Route
 }
 
 func (u *tripUsecase) CreateTrip(userID string, mustPlaces []string, interestTags []string, freeText string) (*CreateTripOutput, error) {
@@ -52,7 +52,7 @@ func (u *tripUsecase) CreateTrip(userID string, mustPlaces []string, interestTag
 	tripID := uuid.New().String()
 	shareID := uuid.New().String()
 
-	trip := &entity.Trip{
+	trip := &model.Trip{
 		ID:        tripID,
 		UserID:    userID,
 		Title:     fmt.Sprintf("福岡観光 %s", tripID[:8]),
@@ -73,7 +73,7 @@ func (u *tripUsecase) CreateTrip(userID string, mustPlaces []string, interestTag
 		if !ok {
 			continue
 		}
-		place := &entity.TripPlace{
+		place := &model.TripPlace{
 			ID:          uuid.New().String(),
 			TripID:      tripID,
 			PlaceID:     getString(placeData, "place_id"),
@@ -111,14 +111,14 @@ func (u *tripUsecase) CreateTrip(userID string, mustPlaces []string, interestTag
 	}
 	itinerary := convertItineraryFromPlaces(savedPlaces, trip.StartTime)
 
-	candidates := []entity.TripPlace{}
+	candidates := []model.TripPlace{}
 	if cands, ok := mlResp["candidates"].([]interface{}); ok {
 		for _, item := range cands {
 			placeData, ok := item.(map[string]interface{})
 			if !ok {
 				continue
 			}
-			candidates = append(candidates, entity.TripPlace{
+			candidates = append(candidates, model.TripPlace{
 				PlaceID:       getString(placeData, "place_id"),
 				Name:          getString(placeData, "name"),
 				Lat:           getFloat64(placeData, "lat"),
@@ -140,7 +140,7 @@ func (u *tripUsecase) CreateTrip(userID string, mustPlaces []string, interestTag
 
 	if route, ok := mlResp["route"].(map[string]interface{}); ok {
 		if polyline, ok := route["polyline"].(string); ok {
-			output.Route = &entity.Route{Polyline: polyline}
+			output.Route = &model.Route{Polyline: polyline}
 		}
 	}
 
@@ -148,8 +148,8 @@ func (u *tripUsecase) CreateTrip(userID string, mustPlaces []string, interestTag
 }
 
 type RecomputeTripOutput struct {
-	Itinerary []entity.TripPlace
-	Route     *entity.Route
+	Itinerary []model.TripPlace
+	Route     *model.Route
 }
 
 func (u *tripUsecase) RecomputeTrip(userID, tripID string, orderedPlaceIDs []string, stayMinutesMap map[string]int) (*RecomputeTripOutput, error) {
@@ -203,7 +203,7 @@ func (u *tripUsecase) RecomputeTrip(userID, tripID string, orderedPlaceIDs []str
 
 	if route, ok := mlResp["route"].(map[string]interface{}); ok {
 		if polyline, ok := route["polyline"].(string); ok {
-			output.Route = &entity.Route{Polyline: polyline}
+			output.Route = &model.Route{Polyline: polyline}
 		}
 	}
 
@@ -211,9 +211,9 @@ func (u *tripUsecase) RecomputeTrip(userID, tripID string, orderedPlaceIDs []str
 }
 
 type GetShareOutput struct {
-	Trip      *entity.Trip
-	Itinerary []entity.TripPlace
-	Route     *entity.Route
+	Trip      *model.Trip
+	Itinerary []model.TripPlace
+	Route     *model.Route
 }
 
 func (u *tripUsecase) GetShare(shareID string) (*GetShareOutput, error) {
@@ -238,13 +238,13 @@ func (u *tripUsecase) GetShare(shareID string) (*GetShareOutput, error) {
 		})
 	}
 
-	var route *entity.Route
+	var route *model.Route
 	if len(waypoints) > 0 {
 		mlResp, err := u.mlService.RecomputeRoute(waypoints)
 		if err == nil {
 			if routeData, ok := mlResp["route"].(map[string]interface{}); ok {
 				if polyline, ok := routeData["polyline"].(string); ok {
-					route = &entity.Route{Polyline: polyline}
+					route = &model.Route{Polyline: polyline}
 				}
 			}
 		}
