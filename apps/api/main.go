@@ -5,31 +5,13 @@ import (
 	"os"
 
 	"fukuoka-ai-api/controllers"
-	"fukuoka-ai-api/infra/database"
 	"fukuoka-ai-api/infra/service"
-	"fukuoka-ai-api/repositories"
 	"fukuoka-ai-api/usecase"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	dbPath := os.Getenv("DB_PATH")
-	if dbPath == "" {
-		dbPath = "./data/fukuoka_ai.db"
-	}
-
-	db, err := database.InitDB(dbPath)
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
-	defer db.Close()
-
-	mlServiceURL := os.Getenv("ML_SERVICE_URL")
-	if mlServiceURL == "" {
-		mlServiceURL = "http://localhost:8000"
-	}
-
 	router := gin.Default()
 
 	// CORS設定
@@ -47,18 +29,15 @@ func main() {
 		c.Next()
 	})
 
-	// 依存関係の注入
-	tripRepo := repositories.NewTripRepository(db)
-	mlService := service.NewMLService(mlServiceURL)
-	tripUsecase := usecase.NewTripUsecase(tripRepo, mlService)
-	tripController := controllers.NewTripController(tripUsecase)
+	// リコメンド機能の依存関係
+	geocodingService := service.NewGeocodingService()
+	nearbySearchService := service.NewNearbySearchService()
+	placeDetailsService := service.NewPlaceDetailsService()
+	recommendUsecase := usecase.NewRecommendUsecase(geocodingService, nearbySearchService, placeDetailsService)
+	recommendController := controllers.NewRecommendController(recommendUsecase)
 
-	v1 := router.Group("/v1")
-	{
-		v1.POST("/trips", tripController.CreateTrip)
-		v1.POST("/trips/:trip_id/recompute", tripController.RecomputeTrip)
-		v1.GET("/shares/:share_id", tripController.GetShare)
-	}
+	// リコメンド機能のエンドポイント
+	router.POST("/recommend", recommendController.Recommend)
 
 	port := os.Getenv("PORT")
 	if port == "" {
