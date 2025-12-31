@@ -1,4 +1,4 @@
-package mlservice
+package service
 
 import (
 	"encoding/json"
@@ -6,21 +6,24 @@ import (
 	"io"
 	"net/http"
 	"strings"
-
-	"fukuoka-ai-api/domain/service"
 )
 
-type mlService struct {
+type IMLService interface {
+	Recommend(mustPlaces []string, interestTags []string, freeText string) (map[string]interface{}, error)
+	RecomputeRoute(waypoints []map[string]float64) (map[string]interface{}, error)
+}
+
+type MLService struct {
 	baseURL string
 }
 
-func NewMLService(baseURL string) service.MLService {
-	return &mlService{
+func NewMLService(baseURL string) IMLService {
+	return &MLService{
 		baseURL: baseURL,
 	}
 }
 
-func (s *mlService) call(endpoint string, data interface{}) (map[string]interface{}, error) {
+func (s *MLService) call(endpoint string, data interface{}) (map[string]interface{}, error) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
@@ -50,7 +53,7 @@ func (s *mlService) call(endpoint string, data interface{}) (map[string]interfac
 	return result, nil
 }
 
-func (s *mlService) Recommend(mustPlaces []string, interestTags []string, freeText string) (map[string]interface{}, error) {
+func (s *MLService) Recommend(mustPlaces []string, interestTags []string, freeText string) (map[string]interface{}, error) {
 	req := map[string]interface{}{
 		"start":         "Hakata Station",
 		"must_places":   mustPlaces,
@@ -60,7 +63,7 @@ func (s *mlService) Recommend(mustPlaces []string, interestTags []string, freeTe
 	return s.call("/recommend", req)
 }
 
-func (s *mlService) RecomputeRoute(waypoints []map[string]float64) (map[string]interface{}, error) {
+func (s *MLService) RecomputeRoute(waypoints []map[string]float64) (map[string]interface{}, error) {
 	req := map[string]interface{}{
 		"start":     "Hakata Station",
 		"waypoints": waypoints,

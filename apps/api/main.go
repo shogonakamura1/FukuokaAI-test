@@ -4,10 +4,10 @@ import (
 	"log"
 	"os"
 
-	"fukuoka-ai-api/delivery/controller"
-	"fukuoka-ai-api/infrastructure/database"
-	"fukuoka-ai-api/infrastructure/mlservice"
-	infraRepo "fukuoka-ai-api/infrastructure/repository"
+	"fukuoka-ai-api/controllers"
+	"fukuoka-ai-api/infra/database"
+	"fukuoka-ai-api/infra/service"
+	"fukuoka-ai-api/repositories"
 	"fukuoka-ai-api/usecase"
 
 	"github.com/gin-gonic/gin"
@@ -48,10 +48,10 @@ func main() {
 	})
 
 	// 依存関係の注入
-	tripRepo := infraRepo.NewTripRepository(db)
-	mlService := mlservice.NewMLService(mlServiceURL)
+	tripRepo := repositories.NewTripRepository(db)
+	mlService := service.NewMLService(mlServiceURL)
 	tripUsecase := usecase.NewTripUsecase(tripRepo, mlService)
-	tripController := controller.NewTripController(tripUsecase)
+	tripController := controllers.NewTripController(tripUsecase)
 
 	v1 := router.Group("/v1")
 	{

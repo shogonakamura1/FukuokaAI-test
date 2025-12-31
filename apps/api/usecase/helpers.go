@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"fukuoka-ai-api/domain/model"
+	"fukuoka-ai-api/models"
 )
 
-func convertItineraryFromPlaces(places []*model.TripPlace, startTime string) []model.TripPlace {
-	result := []model.TripPlace{}
+func convertItineraryFromPlaces(places []*models.TripPlace, startTime string) []models.TripPlace {
+	result := []models.TripPlace{}
 	currentTime := parseTime(startTime)
 
 	for _, place := range places {
@@ -24,10 +24,10 @@ func convertItineraryFromPlaces(places []*model.TripPlace, startTime string) []m
 	return result
 }
 
-func calculateTimeline(places []*model.TripPlace, startTime string, mlResp map[string]interface{}) []model.TripPlace {
+func calculateTimeline(places []*models.TripPlace, startTime string, mlResp map[string]interface{}) []models.TripPlace {
 	// 簡易実装: 移動時間は30分固定（MVP）
 	// 実際にはDirections APIのlegsから取得すべき
-	result := []model.TripPlace{}
+	result := []models.TripPlace{}
 	currentTime := parseTime(startTime)
 
 	for i, place := range places {

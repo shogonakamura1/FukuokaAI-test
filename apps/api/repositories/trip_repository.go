@@ -1,21 +1,32 @@
-package repository
+package repositories
 
 import (
 	"database/sql"
 
-	"fukuoka-ai-api/domain/model"
-	"fukuoka-ai-api/domain/repository"
+	"fukuoka-ai-api/models"
 )
 
-type tripRepository struct {
+type ITripRepository interface {
+	EnsureUser(userID string) error
+	CreateTrip(trip *models.Trip) error
+	GetTrip(tripID string) (*models.Trip, error)
+	GetTripByShareID(shareID string) (*models.Trip, error)
+	CreateTripPlace(place *models.TripPlace) error
+	GetTripPlaces(tripID string) ([]*models.TripPlace, error)
+	GetTripPlacesByIDs(tripID string, placeIDs []string) ([]*models.TripPlace, error)
+	UpdateTripPlace(place *models.TripPlace) error
+	CreateShare(shareID, tripID string) error
+}
+
+type TripRepository struct {
 	db *sql.DB
 }
 
-func NewTripRepository(db *sql.DB) repository.TripRepository {
-	return &tripRepository{db: db}
+func NewTripRepository(db *sql.DB) ITripRepository {
+	return &TripRepository{db: db}
 }
 
-func (r *tripRepository) EnsureUser(userID string) error {
+func (r *TripRepository) EnsureUser(userID string) error {
 	_, err := r.db.Exec(
 		"INSERT OR IGNORE INTO users (id) VALUES (?)",
 		userID,
@@ -23,7 +34,7 @@ func (r *tripRepository) EnsureUser(userID string) error {
 	return err
 }
 
-func (r *tripRepository) CreateTrip(trip *model.Trip) error {
+func (r *TripRepository) CreateTrip(trip *models.Trip) error {
 	_, err := r.db.Exec(
 		"INSERT INTO trips (id, user_id, title, start_time) VALUES (?, ?, ?, ?)",
 		trip.ID, trip.UserID, trip.Title, trip.StartTime,
@@ -31,8 +42,8 @@ func (r *tripRepository) CreateTrip(trip *model.Trip) error {
 	return err
 }
 
-func (r *tripRepository) GetTrip(tripID string) (*model.Trip, error) {
-	trip := &model.Trip{}
+func (r *TripRepository) GetTrip(tripID string) (*models.Trip, error) {
+	trip := &models.Trip{}
 	err := r.db.QueryRow(
 		"SELECT id, user_id, title, start_time, created_at FROM trips WHERE id = ?",
 		tripID,
@@ -43,8 +54,8 @@ func (r *tripRepository) GetTrip(tripID string) (*model.Trip, error) {
 	return trip, nil
 }
 
-func (r *tripRepository) GetTripByShareID(shareID string) (*model.Trip, error) {
-	trip := &model.Trip{}
+func (r *TripRepository) GetTripByShareID(shareID string) (*models.Trip, error) {
+	trip := &models.Trip{}
 	err := r.db.QueryRow(
 		`SELECT t.id, t.user_id, t.title, t.start_time, t.created_at 
 		 FROM trips t 
@@ -58,7 +69,7 @@ func (r *tripRepository) GetTripByShareID(shareID string) (*model.Trip, error) {
 	return trip, nil
 }
 
-func (r *tripRepository) CreateTripPlace(place *model.TripPlace) error {
+func (r *TripRepository) CreateTripPlace(place *models.TripPlace) error {
 	_, err := r.db.Exec(
 		`INSERT INTO trip_places 
 		 (id, trip_id, place_id, name, lat, lng, kind, stay_minutes, order_index, reason, review_summary, photo_url) 
@@ -69,7 +80,7 @@ func (r *tripRepository) CreateTripPlace(place *model.TripPlace) error {
 	return err
 }
 
-func (r *tripRepository) GetTripPlaces(tripID string) ([]*model.TripPlace, error) {
+func (r *TripRepository) GetTripPlaces(tripID string) ([]*models.TripPlace, error) {
 	rows, err := r.db.Query(
 		`SELECT id, trip_id, place_id, name, lat, lng, kind, stay_minutes, order_index, reason, review_summary, photo_url 
 		 FROM trip_places 
@@ -82,9 +93,9 @@ func (r *tripRepository) GetTripPlaces(tripID string) ([]*model.TripPlace, error
 	}
 	defer rows.Close()
 
-	places := []*model.TripPlace{}
+	places := []*models.TripPlace{}
 	for rows.Next() {
-		place := &model.TripPlace{}
+		place := &models.TripPlace{}
 		err := rows.Scan(
 			&place.ID, &place.TripID, &place.PlaceID, &place.Name,
 			&place.Lat, &place.Lng, &place.Kind, &place.StayMinutes,
@@ -98,9 +109,9 @@ func (r *tripRepository) GetTripPlaces(tripID string) ([]*model.TripPlace, error
 	return places, nil
 }
 
-func (r *tripRepository) GetTripPlacesByIDs(tripID string, placeIDs []string) ([]*model.TripPlace, error) {
+func (r *TripRepository) GetTripPlacesByIDs(tripID string, placeIDs []string) ([]*models.TripPlace, error) {
 	if len(placeIDs) == 0 {
-		return []*model.TripPlace{}, nil
+		return []*models.TripPlace{}, nil
 	}
 
 	query := `SELECT id, trip_id, place_id, name, lat, lng, kind, stay_minutes, order_index, reason, review_summary, photo_url 
@@ -122,10 +133,10 @@ func (r *tripRepository) GetTripPlacesByIDs(tripID string, placeIDs []string) ([
 	}
 	defer rows.Close()
 
-	places := []*model.TripPlace{}
-	placeMap := make(map[string]*model.TripPlace)
+	places := []*models.TripPlace{}
+	placeMap := make(map[string]*models.TripPlace)
 	for rows.Next() {
-		place := &model.TripPlace{}
+		place := &models.TripPlace{}
 		err := rows.Scan(
 			&place.ID, &place.TripID, &place.PlaceID, &place.Name,
 			&place.Lat, &place.Lng, &place.Kind, &place.StayMinutes,
@@ -147,7 +158,7 @@ func (r *tripRepository) GetTripPlacesByIDs(tripID string, placeIDs []string) ([
 	return places, nil
 }
 
-func (r *tripRepository) UpdateTripPlace(place *model.TripPlace) error {
+func (r *TripRepository) UpdateTripPlace(place *models.TripPlace) error {
 	_, err := r.db.Exec(
 		`UPDATE trip_places 
 		 SET stay_minutes = ?, order_index = ? 
@@ -157,7 +168,7 @@ func (r *tripRepository) UpdateTripPlace(place *model.TripPlace) error {
 	return err
 }
 
-func (r *tripRepository) CreateShare(shareID, tripID string) error {
+func (r *TripRepository) CreateShare(shareID, tripID string) error {
 	_, err := r.db.Exec(
 		"INSERT INTO shares (share_id, trip_id) VALUES (?, ?)",
 		shareID, tripID,

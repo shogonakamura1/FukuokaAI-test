@@ -1,4 +1,4 @@
-package model
+package models
 
 type TripPlace struct {
 	ID            string  `json:"id,omitempty"`
