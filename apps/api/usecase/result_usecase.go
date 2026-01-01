@@ -137,7 +137,9 @@ func (u *ResultUsecase) ComputeOptimizedRoute(req *models.ResultRequest) (*model
 
 	// 4. ルート情報を構築
 	var routeLegs []models.RouteLeg
-	for _, leg := range routeData.Legs {
+	for i, leg := range routeData.Legs {
+		// デバッグ: 距離情報を確認
+		fmt.Printf("Leg %d: DistanceMeters=%d, Duration=%s\n", i, leg.DistanceMeters, leg.Duration)
 		routeLegs = append(routeLegs, models.RouteLeg{
 			StartLocation: models.Coordinate{
 				Lat: leg.StartLocation.LatLng.Latitude,

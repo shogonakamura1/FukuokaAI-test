@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react'
 import ItineraryTimeline from '@/components/ItineraryTimeline'
 import MapView from '@/components/MapView'
 import { Place, Route } from '@/components/TripPlanner'
+import Header from '@/components/Header'
 
 export default function ItineraryPage() {
   const router = useRouter()
@@ -70,36 +71,29 @@ export default function ItineraryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-full mx-auto px-6 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-lg font-semibold text-gray-900">
-              旅程タイムライン
-            </h1>
-            <nav className="flex items-center gap-4">
-              <div className="text-sm text-gray-600">
-                {session?.user?.email}
-              </div>
-              <button
-                onClick={() => router.push('/')}
-                className="px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-              >
-                新しい旅程を作成
-              </button>
-            </nav>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-white">
+      <Header />
       <div className="flex h-[calc(100vh-73px)]">
-        <div className="w-1/2 overflow-y-auto bg-white border-r border-gray-200">
-          <div className="p-6">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">
-                旅程リスト
-              </h2>
-              <div className="text-sm text-gray-600">
-                選択した場所: <span className="font-medium text-gray-900">{itinerary.length}件</span>
+        <div className="w-1/2 overflow-y-auto bg-white border-r border-gray-300">
+          <div className="p-0">
+            <div className="w-100 d-flex justify-content-center mb-6 pt-4">
+              <div className="d-flex align-items-center gap-2" style={{ width: '66.666667%' }}>
+                <img 
+                  src="/image/travelbag.jpg" 
+                  alt="旅程" 
+                  className="object-contain"
+                  style={{ 
+                    width: '50px', 
+                    height: '50px', 
+                    maxWidth: '50px', 
+                    maxHeight: '50px',
+                    backgroundColor: 'transparent',
+                    mixBlendMode: 'multiply'
+                  }}
+                />
+                <h2 className="text-xl font-medium text-gray-900 mb-0">
+                  旅程
+                </h2>
               </div>
             </div>
             <ItineraryTimeline

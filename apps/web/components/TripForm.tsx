@@ -8,6 +8,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 // @ts-ignore
 import { z } from 'zod'
+// @ts-ignore
+import { Card } from 'react-bootstrap'
 
 const interestTags = [
   'カフェ',
@@ -109,141 +111,170 @@ export default function TripForm({ onSubmit, loading }: TripFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-8">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          行きたい場所（最大5件）
-        </label>
-        <div className="space-y-3">
-          {mustPlaces.map((place: string, index: number) => (
-            <div key={index} className="flex gap-3">
-              <input
-                type="text"
-                value={place}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => updatePlace(index, e.target.value)}
-                placeholder="例: 太宰府天満宮"
-                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white text-base transition-all duration-200"
-              />
-              {mustPlaces.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removePlaceField(index)}
-                  className="px-4 py-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 text-sm font-medium"
-                >
-                  削除
-                </button>
-              )}
-            </div>
-          ))}
-          {mustPlaces.length < 5 && (
-            <button
-              type="button"
-              onClick={addPlaceField}
-              className="w-full px-4 py-2.5 text-sm text-gray-600 border border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-colors duration-200 font-medium"
-            >
-              + 場所を追加
-            </button>
+    <Card className="p-4">
+      <Card.Body className="d-flex flex-column align-items-center">
+        <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4" style={{ width: '100%', maxWidth: '500px' }}>
+        {/* 必ず行きたい場所 */}
+        <div className="w-100 my-4">
+          <div className="d-flex align-items-center mb-2">
+            <label className="text-base font-medium text-gray-900 me-3" style={{ minWidth: '180px' }}>
+              必ず行きたい場所は?
+            </label>
+          </div>
+          <div className="space-y-3 w-100">
+            {mustPlaces.map((place: string, index: number) => (
+              <div key={index} className="flex gap-3">
+                <input
+                  type="text"
+                  value={place}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    updatePlace(index, e.target.value)
+                  }
+                  placeholder="例: 太宰府天満宮"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white text-base"
+                />
+                {index === mustPlaces.length - 1 && mustPlaces.length < 5 && (
+                  <button
+                    type="button"
+                    onClick={addPlaceField}
+                    className="px-4 py-2.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors duration-200 text-sm font-medium"
+                  >
+                    追加
+                  </button>
+                )}
+                {mustPlaces.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removePlaceField(index)}
+                    className="px-4 py-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors duration-200 text-sm font-medium"
+                  >
+                    削除
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          {errors.must_places && (
+            <p className="text-sm mt-2 text-red-600 w-100" style={{ marginLeft: '183px' }}>
+              {errors.must_places.message ||
+                "行きたい場所を1つ以上入力してください"}
+            </p>
           )}
         </div>
-        {errors.must_places && (
-          <p className="text-sm mt-2 text-red-600">
-            {errors.must_places.message || '行きたい場所を1つ以上入力してください'}
-          </p>
-        )}
-      </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          興味タグ（複数選択可）
-        </label>
-        <div className="grid grid-cols-2 gap-3">
-          {interestTags.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => toggleTag(tag)}
-              className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                selectedTags.includes(tag)
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-              }`}
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
-        {errors.interest_tags && (
-          <p className="text-sm mt-2 text-red-600">
-            少なくとも1つのタグを選択してください
-          </p>
-        )}
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            出発地点 <span className="text-red-600">*</span>
-          </label>
-          <input
-            {...register('start_place')}
-            type="text"
-            placeholder="例: 博多駅"
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white text-base transition-all duration-200"
-          />
+        {/* 出発地点 */}
+        <div className="w-100 my-4">
+          <div className="d-flex align-items-center">
+            <label className="text-base font-medium text-gray-900 me-3" style={{ minWidth: '180px' }}>
+              出発地点は?
+            </label>
+            <input
+              {...register("start_place")}
+              type="text"
+              placeholder="例: 博多駅"
+              className="flex-grow-1 px-4 py-2.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white text-base"
+            />
+          </div>
           {errors.start_place && (
-            <p className="text-sm mt-2 text-red-600">
+            <p className="text-sm mt-2 text-red-600" style={{ marginLeft: '183px' }}>
               {errors.start_place.message}
             </p>
           )}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            ゴール地点 <span className="text-red-600">*</span>
-          </label>
-          <input
-            {...register('goal_place')}
-            type="text"
-            placeholder="例: 天神"
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white text-base transition-all duration-200"
-          />
+        {/* 到着地点 */}
+        <div className="w-100 my-4">
+          <div className="d-flex align-items-center">
+            <label className="text-base font-medium text-gray-900 me-3" style={{ minWidth: '180px' }}>
+              到着地点は?
+            </label>
+            <input
+              {...register("goal_place")}
+              type="text"
+              placeholder="例: 天神"
+              className="flex-grow-1 px-4 py-2.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white text-base"
+            />
+          </div>
           {errors.goal_place && (
-            <p className="text-sm mt-2 text-red-600">
+            <p className="text-sm mt-2 text-red-600" style={{ marginLeft: '183px' }}>
               {errors.goal_place.message}
             </p>
           )}
         </div>
-      </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          追加の希望（任意）
-        </label>
-        <textarea
-          {...register('free_text')}
-          placeholder="例: 静かめの古民家カフェが好き"
-          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white resize-none text-base transition-all duration-200"
-          rows={3}
-        />
-      </div>
+        {/* 興味あるタグ */}
+        <div className="w-100 my-4">
+          <div className="d-flex align-items-center mb-3">
+            <label className="text-base font-medium text-gray-900 me-3" style={{ minWidth: '180px' }}>
+              あなたの興味あるタグは?
+            </label>
+          </div>
+          <div className="d-flex flex-wrap gap-2 justify-content-center w-100">
+            {interestTags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => toggleTag(tag)}
+                className={`px-4 py-2 rounded border transition-colors duration-200 text-base ${
+                  selectedTags.includes(tag)
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+          {errors.interest_tags && (
+            <p className="text-sm mt-2 text-red-600 text-center w-100">
+              少なくとも1つのタグを選択してください
+            </p>
+          )}
+        </div>
 
-      <button
-        type="submit"
-        disabled={loading || selectedTags.length === 0}
-        className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 text-base font-medium"
-      >
-        {loading ? (
-          <span className="flex items-center justify-center gap-2">
-            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span>生成中...</span>
-          </span>
-        ) : (
-          '旅程を生成'
-        )}
-      </button>
-    </form>
-  )
+        {/* 作成開始ボタン */}
+        <div className="d-flex justify-content-center pt-4 w-100 my-4">
+          <button
+            type="submit"
+            disabled={loading || selectedTags.length === 0}
+            className="px-12 py-3 text-white rounded hover:opacity-90 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 text-base font-medium"
+            style={{ 
+              backgroundColor: loading || selectedTags.length === 0 ? '#ffb3ba' : '#ff6b7a',
+              color: '#8b0000',
+              minWidth: '200px'
+            }}
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg
+                  className="animate-spin h-5 w-5"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                <span>生成中...</span>
+              </span>
+            ) : (
+              "作成開始"
+            )}
+          </button>
+        </div>
+        </form>
+      </Card.Body>
+    </Card>
+  );
 }

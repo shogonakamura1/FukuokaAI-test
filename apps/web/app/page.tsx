@@ -1,7 +1,8 @@
 'use client'
 
-import { useSession, signIn, signOut } from 'next-auth/react'
+import { useSession, signIn } from 'next-auth/react'
 import RecommendPage from '@/components/RecommendPage'
+import Header from '@/components/Header'
 
 export default function Home() {
   const { data: session, status } = useSession()
@@ -16,54 +17,34 @@ export default function Home() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-4">
-        <div className="max-w-md w-full">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
-              福岡観光
-            </h1>
-            <h2 className="text-4xl font-semibold text-gray-900 mb-6 tracking-tight">
-              旅程作成AI
-            </h2>
-            <p className="text-gray-600 text-base leading-relaxed">
-              Googleアカウントでログインして、あなただけの旅程を作成しましょう
-            </p>
+      <div className="min-h-screen bg-white" style={{width: '75%'}}>
+        <Header />
+        <div className="flex items-center justify-center min-h-[calc(100vh-73px)] px-4">
+          <div className="w-full max-w-md">
+            <div className="bg-gray-200 rounded-lg p-12 flex flex-col items-center">
+              <button
+                onClick={() => signIn('google')}
+                className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-8 py-4 rounded-lg transition-colors duration-200 text-base font-medium"
+              >
+                <div className="text-center">
+                  <div className="text-sm mb-1">Google アカウントで</div>
+                  <div className="text-base font-semibold">ログイン</div>
+                </div>
+              </button>
+            </div>
           </div>
-          <button
-            onClick={() => signIn('google')}
-            className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-base font-medium"
-          >
-            Googleでログイン
-          </button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-lg font-semibold text-gray-900">
-              福岡観光 旅程作成AI
-            </h1>
-            <nav className="flex items-center gap-4">
-              <div className="text-sm text-gray-600">
-                {session.user?.email}
-              </div>
-              <button
-                onClick={() => signOut()}
-                className="px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-              >
-                ログアウト
-              </button>
-            </nav>
-          </div>
+    <div className="min-h-screen bg-white">
+      <Header />
+      <main className="w-full flex items-center min-h-[calc(100vh-73px)]">
+        <div className="w-full flex justify-center">
+          <RecommendPage />
         </div>
-      </header>
-      <main>
-        <RecommendPage />
       </main>
     </div>
   )

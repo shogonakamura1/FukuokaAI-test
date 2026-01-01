@@ -117,6 +117,9 @@ export default function MapView({ itinerary, route }: MapViewProps) {
 
   // マーカーのリストをメモ化してパフォーマンスを改善
   const markers = useMemo(() => {
+    // 画像ファイルのパス（Next.jsではpublicディレクトリがルートになる）
+    const iconUrl = '/image/mappin.png'
+    
     return itinerary
       .filter(place => 
         typeof place.lat === 'number' && typeof place.lng === 'number' &&
@@ -128,6 +131,7 @@ export default function MapView({ itinerary, route }: MapViewProps) {
         position: { lat: place.lat, lng: place.lng },
         label: String(index + 1),
         title: place.name,
+        iconUrl,
       }))
   }, [itinerary])
 
@@ -152,14 +156,17 @@ export default function MapView({ itinerary, route }: MapViewProps) {
           zoomControl: true,
         }}
       >
-        {markers.map((marker) => (
-          <Marker
-            key={marker.id}
-            position={marker.position}
-            label={marker.label}
-            title={marker.title}
-          />
-        ))}
+        {markers.map((marker) => {
+          return (
+            <Marker
+              key={marker.id}
+              position={marker.position}
+              label={marker.label}
+              title={marker.title}
+              icon={marker.iconUrl}
+            />
+          )
+        })}
         {routePath.length > 0 && (
           <Polyline
             path={routePath}

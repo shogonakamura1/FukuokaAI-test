@@ -3,15 +3,38 @@ package main
 import (
 	"log"
 	"os"
+	"path/filepath"
 
 	"fukuoka-ai-api/controllers"
 	"fukuoka-ai-api/infra/service"
 	"fukuoka-ai-api/usecase"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// .envファイルを読み込む（複数のパスを試す）
+	envPaths := []string{
+		filepath.Join("..", "..", ".env"),  // apps/api から実行する場合
+		".env",                               // プロジェクトルートから実行する場合
+		filepath.Join("..", ".env"),         // apps から実行する場合
+	}
+	
+	loaded := false
+	for _, envPath := range envPaths {
+		if err := godotenv.Load(envPath); err == nil {
+			log.Printf("Loaded .env file from: %s", envPath)
+			loaded = true
+			break
+		}
+	}
+	
+	if !loaded {
+		// .envファイルが見つからない場合でも続行（環境変数が直接設定されているか、Docker Compose経由で渡されている可能性がある）
+		log.Printf("Warning: .env file not found, using system environment variables")
+	}
+
 	router := gin.Default()
 
 	// CORS設定

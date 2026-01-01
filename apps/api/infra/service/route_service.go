@@ -220,7 +220,8 @@ func (s *RouteService) ComputeRoute(originLat, originLng float64, destinationLat
 
 	req.Header.Set("Content-Type", "application/json")
 	// Routes API v2では、optimizeWaypointOrderがtrueの場合、routes.optimized_intermediate_waypoint_indexをフィールドマスクに含める必要がある
-	fieldMask := "routes.duration,routes.distanceMeters,routes.legs"
+	// legsの距離情報も明示的に指定
+	fieldMask := "routes.duration,routes.distanceMeters,routes.legs.distanceMeters,routes.legs.duration,routes.legs.startLocation,routes.legs.endLocation"
 	if reqBody.OptimizeWaypointOrder {
 		fieldMask += ",routes.optimized_intermediate_waypoint_index"
 	}

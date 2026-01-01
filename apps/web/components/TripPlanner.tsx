@@ -247,6 +247,20 @@ export default function TripPlanner() {
 
       const result = await response.json()
       
+      // デバッグ: ルート情報を確認
+      console.log('ルート計算結果:', JSON.stringify(result.route, null, 2))
+      if (result.route?.legs && result.route.legs.length > 0) {
+        console.log('Legs情報:', result.route.legs)
+        result.route.legs.forEach((leg: any, idx: number) => {
+          console.log(`Leg ${idx}:`, {
+            distance_meters: leg.distance_meters,
+            distanceMeters: leg.distanceMeters,
+            duration: leg.duration,
+            allKeys: Object.keys(leg)
+          })
+        })
+      }
+      
       // 最適化された順序でplacesを更新（移動時間を含める）
       const optimizedPlaces: Place[] = (result.places || []).map((place: any, index: number) => {
         const placeObj: Place = {
@@ -271,13 +285,18 @@ export default function TripPlanner() {
           placeObj.kind = originalPlace?.kind || 'recommended'
         }
 
-        // 移動時間を設定（route.legsから取得）
+        // 移動時間と距離を設定（route.legsから取得）
         if (result.route?.legs && index > 0 && result.route.legs[index - 1]) {
           const leg = result.route.legs[index - 1]
           // durationは "1800s" のような形式なので、分に変換
           const durationSeconds = parseInt(leg.duration?.replace('s', '') || '0', 10)
           const durationMinutes = Math.round(durationSeconds / 60)
-          placeObj.travel_time_from_previous = `${durationMinutes}分`
+          // APIレスポンスはdistance_meters（スネークケース）で返される
+          // 念のため両方の形式を確認
+          const distanceMeters = leg.distance_meters ?? (leg as any).distanceMeters ?? 0
+          console.log(`Place ${index} (${place.name}): distance_meters=${leg.distance_meters}, distanceMeters=${(leg as any).distanceMeters}, final=${distanceMeters}`)
+          const distanceKm = distanceMeters > 0 ? (distanceMeters / 1000).toFixed(1) : '0.0'
+          placeObj.travel_time_from_previous = `${durationMinutes}分 / ${distanceKm}km`
         }
 
         return placeObj

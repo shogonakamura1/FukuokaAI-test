@@ -1,7 +1,7 @@
 'use client'
 
 // @ts-ignore - モジュールは存在するが、型定義が見つからない場合がある
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -18,6 +18,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { Card } from 'react-bootstrap'
 import { Place } from './TripPlanner'
 
 interface ItineraryTimelineProps {
@@ -28,9 +29,73 @@ interface ItineraryTimelineProps {
 interface SortableItemProps {
   place: Place
   index: number
+  startTime: string
+  endTime: string
+  travelTime?: string
+  travelDistance?: string
+  isLast: boolean
 }
 
-function SortableItem({ place, index }: SortableItemProps) {
+// 滞在時間を計算（デフォルトは90分）
+const getStayMinutes = (place: Place): number => {
+  if (place.stay_minutes) {
+    return place.stay_minutes
+  }
+  // デフォルトの滞在時間（90分）
+  return 90
+}
+
+// 分を時間文字列に変換
+const minutesToTime = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
+}
+
+// 時間範囲を計算
+const calculateTimeRanges = (places: Place[]): Array<{ start: string; end: string; travelTime?: string; travelDistance?: string }> => {
+  if (places.length === 0) return []
+  
+  const startHour = 10 // デフォルト開始時刻 10:00
+  const ranges: Array<{ start: string; end: string; travelTime?: string; travelDistance?: string }> = []
+  
+  let currentMinutes = startHour * 60
+  
+  places.forEach((place, index) => {
+    // 移動時間と距離（前の場所から）
+    let travelMinutes = 0
+    let travelDistance = ''
+    if (index > 0 && place.travel_time_from_previous) {
+      // "50分 / 18km" または "50分" の形式をパース
+      const timeMatch = place.travel_time_from_previous.match(/(\d+)分/)
+      const distanceMatch = place.travel_time_from_previous.match(/([\d.]+)km/)
+      if (timeMatch) {
+        travelMinutes = parseInt(timeMatch[1], 10)
+      }
+      if (distanceMatch) {
+        travelDistance = `${distanceMatch[1]}km`
+      }
+    }
+    
+    const startTime = minutesToTime(currentMinutes + travelMinutes)
+    currentMinutes += travelMinutes
+    
+    const stayMinutes = getStayMinutes(place)
+    const endTime = minutesToTime(currentMinutes + stayMinutes)
+    currentMinutes += stayMinutes
+    
+    ranges.push({
+      start: startTime,
+      end: endTime,
+      travelTime: index > 0 && travelMinutes > 0 ? `${travelMinutes}分` : undefined,
+      travelDistance: travelDistance || undefined,
+    })
+  })
+  
+  return ranges
+}
+
+function SortableItem({ place, index, startTime, endTime, travelTime, travelDistance, isLast }: SortableItemProps) {
   const {
     attributes,
     listeners,
@@ -46,79 +111,99 @@ function SortableItem({ place, index }: SortableItemProps) {
     opacity: isDragging ? 0.5 : 1,
   }
 
-  const getBadgeStyle = (kind?: string) => {
-    switch (kind) {
-      case 'must':
-        return 'bg-amber-100 text-amber-800 border-amber-200'
-      case 'start':
-        return 'bg-green-100 text-green-800 border-green-200'
-      case 'goal':
-        return 'bg-blue-100 text-blue-800 border-blue-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
-
-  const getBadgeText = (kind?: string) => {
-    switch (kind) {
-      case 'must':
-        return '必須'
-      case 'start':
-        return '出発'
-      case 'goal':
-        return '到着'
-      default:
-        return 'おすすめ'
-    }
-  }
+  const stayMinutes = getStayMinutes(place)
+  const stayHours = Math.floor(stayMinutes / 60)
+  const stayMins = stayMinutes % 60
+  const stayDuration = stayHours > 0 
+    ? `${stayHours}時間${stayMins > 0 ? stayMins + '分' : '0分'}`
+    : `${stayMins}分`
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="bg-white rounded-lg border border-gray-200 p-5 mb-3 hover:border-gray-300 transition-all duration-200 cursor-move"
-      {...attributes}
-      {...listeners}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-4 mb-3">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {place.name || '名前不明のスポット'}
-            </h3>
-            <span className={`text-xs px-2.5 py-1 rounded border ${getBadgeStyle(place.kind)} font-medium flex-shrink-0`}>
-              {getBadgeText(place.kind)}
-            </span>
-          </div>
-          
-          {place.travel_time_from_previous && (
-            <div className="flex items-center gap-2 mb-3 text-sm text-gray-600">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>移動時間: <span className="font-medium text-gray-900">{place.travel_time_from_previous}</span></span>
+    <>
+      {/* 移動時間と距離（前のカードから） */}
+      {travelTime && (
+        <div
+          className="w-100 d-flex justify-content-center mb-3"
+          style={{ width: "100%" }}
+        >
+          <div
+            className="d-flex align-items-center"
+            style={{ width: "66.666667%", maxWidth: "66.666667%" }}
+          >
+            {/* 縦線 */}
+            <div
+              className="bg-gray-300 h-12 me-4 flex-shrink-0"
+              style={{ width: "1px" }}
+            ></div>
+            {/* 移動情報 */}
+            <div className="d-flex align-items-center gap-2">
+              <div className="d-flex" style={{ height: '80px' }}>
+                <div className="vr"></div>
+              </div>
+              <img
+                src="/image/caricon.png"
+                alt="移動時間"
+                className="object-contain"
+                style={{
+                  width: "20px",
+                  height: "20px",
+                  maxWidth: "20px",
+                  maxHeight: "20px",
+                  backgroundColor: "transparent",
+                  mixBlendMode: "multiply",
+                }}
+              />
+              <span className="text-sm text-secondary">
+                移動時間{travelTime}
+                {travelDistance && ` ${travelDistance}`}
+              </span>
             </div>
-          )}
-          
-          {place.time_range && (
-            <p className="text-sm text-gray-600 mb-2">{place.time_range}</p>
-          )}
-          
-          {place.reason && (
-            <p className="text-sm text-gray-600 mt-3 leading-relaxed">{place.reason}</p>
-          )}
-          
-          {place.address && (
-            <p className="text-sm text-gray-500 mt-2">{place.address}</p>
-          )}
-          
-          {!place.name && !place.time_range && !place.reason && (
-            <p className="text-sm text-gray-500 mt-2">詳細情報がありません</p>
-          )}
+          </div>
         </div>
+      )}
+
+      {/* 場所カード */}
+      <div
+        ref={setNodeRef}
+        style={{ ...style, width: "100%" }}
+        {...attributes}
+        {...listeners}
+        className="w-100 d-flex justify-content-center"
+      >
+        <Card
+          className="mb-3 cursor-move border"
+          style={{ width: "66.666667%", maxWidth: "66.666667%" }}
+        >
+          <Card.Body>
+            {/* 場所名 */}
+            <Card.Title className="mb-2">
+              {place.name || "名前不明のスポット"}
+            </Card.Title>
+
+            {/* 場所情報 */}
+            <Card.Text className="d-flex align-items-center gap-2 mb-0">
+              <img
+                src="/image/mappin.png"
+                alt="場所"
+                className="object-contain"
+                style={{
+                  width: "20px",
+                  height: "20px",
+                  maxWidth: "20px",
+                  maxHeight: "20px",
+                  backgroundColor: "transparent",
+                  mixBlendMode: "multiply",
+                }}
+              />
+              <span className="text-muted">
+                {place.address || "Fukuoka city"}
+              </span>
+            </Card.Text>
+          </Card.Body>
+        </Card>
       </div>
-    </div>
-  )
+    </>
+  );
 }
 
 export default function ItineraryTimeline({ itinerary, onReorder }: ItineraryTimelineProps) {
@@ -135,6 +220,9 @@ export default function ItineraryTimeline({ itinerary, onReorder }: ItineraryTim
       coordinateGetter: sortableKeyboardCoordinates,
     })
   )
+
+  // 時間範囲を計算
+  const timeRanges = useMemo(() => calculateTimeRanges(items), [items])
 
   const handleDragEnd = (event: { active: { id: string | number }; over: { id: string | number } | null }) => {
     const { active, over } = event
@@ -167,7 +255,7 @@ export default function ItineraryTimeline({ itinerary, onReorder }: ItineraryTim
   }
 
   return (
-    <div>
+    <div className="w-100 d-flex flex-column align-items-center pb-4">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -179,9 +267,23 @@ export default function ItineraryTimeline({ itinerary, onReorder }: ItineraryTim
         >
           {items.map((place: Place, index: number) => {
             const itemKey = place.id || place.place_id || `place-${index}`
+            const timeRange = timeRanges[index] || { start: '10:00', end: '11:30' }
+            const isLast = index === items.length - 1
+            
             // Reactのkeyプロパティは特別なプロパティなので、型定義に含まれない
             // @ts-ignore - Reactのkeyプロパティは型定義に含まれない
-            return <SortableItem place={place} index={index} key={itemKey} />
+            return (
+              <SortableItem
+                key={itemKey}
+                place={place}
+                index={index}
+                startTime={timeRange.start}
+                endTime={timeRange.end}
+                travelTime={timeRange.travelTime}
+                travelDistance={timeRange.travelDistance}
+                isLast={isLast}
+              />
+            )
           })}
         </SortableContext>
       </DndContext>

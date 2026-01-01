@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import TripForm from './TripForm'
 import { Place } from './TripPlanner'
+import Header from './Header'
 
 export default function RecommendPage() {
   const router = useRouter()
@@ -198,6 +199,20 @@ export default function RecommendPage() {
 
       const result = await response.json()
 
+      // デバッグ: ルート情報を確認
+      console.log('ルート計算結果 (RecommendPage):', JSON.stringify(result.route, null, 2))
+      if (result.route?.legs && result.route.legs.length > 0) {
+        console.log('Legs情報 (RecommendPage):', result.route.legs)
+        result.route.legs.forEach((leg: any, idx: number) => {
+          console.log(`Leg ${idx} (RecommendPage):`, {
+            distance_meters: leg.distance_meters,
+            distanceMeters: leg.distanceMeters,
+            duration: leg.duration,
+            allKeys: Object.keys(leg)
+          })
+        })
+      }
+
       // 最適化された順序でplacesを更新（移動時間を含める）
       const optimizedPlaces: Place[] = (result.places || []).map((place: any, index: number) => {
         const placeObj: Place = {
@@ -219,12 +234,17 @@ export default function RecommendPage() {
           placeObj.kind = originalPlace?.kind || 'recommended'
         }
 
-        // 移動時間を設定
+        // 移動時間と距離を設定
         if (result.route?.legs && index > 0 && result.route.legs[index - 1]) {
           const leg = result.route.legs[index - 1]
           const durationSeconds = parseInt(leg.duration?.replace('s', '') || '0', 10)
           const durationMinutes = Math.round(durationSeconds / 60)
-          placeObj.travel_time_from_previous = `${durationMinutes}分`
+          // APIレスポンスはdistance_meters（スネークケース）で返される
+          // 念のため両方の形式を確認
+          const distanceMeters = (leg as any).distance_meters ?? (leg as any).distanceMeters ?? 0
+          console.log(`Place ${index} (${place.name}) (RecommendPage): distance_meters=${(leg as any).distance_meters}, distanceMeters=${(leg as any).distanceMeters}, final=${distanceMeters}`)
+          const distanceKm = distanceMeters > 0 ? (distanceMeters / 1000).toFixed(1) : '0.0'
+          placeObj.travel_time_from_previous = `${durationMinutes}分 / ${distanceKm}km`
         }
 
         return placeObj
@@ -241,132 +261,138 @@ export default function RecommendPage() {
     }
   }
 
+  const getNumberBadgeColor = (index: number) => {
+    const colors = [
+      'bg-yellow-500',  // 1
+      'bg-green-500',   // 2
+      'bg-orange-500',  // 3
+      'bg-blue-500',    // 4
+    ]
+    return index < colors.length ? colors[index] : 'bg-gray-400'
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-6 py-12">
-        {error && (
+    <div className="w-full max-w-2xl bg-white">
+      {error && (
+        <div className="max-w-4xl mx-auto px-6 pt-6">
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-red-700 text-sm">{error}</p>
           </div>
-        )}
+        </div>
+      )}
 
-        {recommendedPlaces.length === 0 ? (
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-lg border border-gray-200 p-8">
-              <div className="mb-8">
-                <h1 className="text-3xl font-semibold text-gray-900 mb-3">
-                  旅程を作成
-                </h1>
-                <p className="text-gray-600 leading-relaxed">
-                  あなたの好みや興味に合わせて、最適な旅程をAIが提案します。行きたい場所や興味のあるタグを選択して、素敵な旅の計画を立てましょう。
-                </p>
-              </div>
-              <TripForm onSubmit={handleGenerateTrip} loading={loading} />
-            </div>
+      {recommendedPlaces.length === 0 ? (
+        <div className="px-6 py-12">
+          <div className="mb-5 mt-4">
+            <h1 className="text-2xl font-medium text-gray-900 mb-5 text-center">
+              AIが最適な旅程を提案します。
+            </h1>
           </div>
-        ) : (
-          <div className="animate-fade-in">
-            <div className="mb-8">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-                おすすめスポット
-              </h2>
-              <p className="text-gray-600">気になる場所を選択して、旅程に追加してください</p>
-            </div>
-            
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
-              {recommendedPlaces.map((place, index) => (
-                <div
-                  key={place.place_id || `candidate-${index}`}
-                  className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:border-gray-300 transition-colors duration-200"
-                >
-                  {place.photo_url && (
-                    <div className="aspect-video overflow-hidden bg-gray-100">
+          <TripForm onSubmit={handleGenerateTrip} loading={loading} />
+        </div>
+      ) : (
+        <div className="max-w-4xl mx-auto px-6 py-8">
+          <div className="mb-8">
+            <h2 className="text-2xl font-medium text-gray-900 text-center mb-8">
+              AIはここを提案します
+            </h2>
+          </div>
+          
+          <div className="space-y-6 mb-8">
+            {recommendedPlaces.map((place, index) => (
+              <div
+                key={place.place_id || `candidate-${index}`}
+                className="bg-white border border-gray-300 rounded-lg overflow-hidden"
+              >
+                <div className="flex">
+                  {/* 写真 */}
+                  <div className="w-32 h-32 flex-shrink-0 bg-gray-200">
+                    {place.photo_url ? (
                       <img
                         src={place.photo_url}
                         alt={place.name || 'スポット画像'}
                         className="w-full h-full object-cover"
                       />
-                    </div>
-                  )}
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                          {place.name || '名前不明のスポット'}
-                        </h3>
-                        {place.category && (
-                          <span className="inline-block text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                            {place.category}
-                          </span>
-                        )}
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={selectedPlaceIds.has(place.place_id)}
-                          onChange={() => handleToggleCandidate(place.place_id)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-5 h-5 border-2 border-gray-300 rounded peer-checked:bg-blue-600 peer-checked:border-blue-600 transition-colors duration-200 flex items-center justify-center">
-                          {selectedPlaceIds.has(place.place_id) && (
-                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </div>
-                      </label>
-                    </div>
-                    
-                    {place.review_summary && (
-                      <p className="text-sm text-gray-600 leading-relaxed mb-3 line-clamp-2">
-                        {place.review_summary}
-                      </p>
-                    )}
-                    
-                    {place.rating && (
-                      <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
-                        <div className="flex items-center gap-0.5">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <svg
-                              key={i}
-                              className={`w-4 h-4 ${i < Math.floor(place.rating) ? 'text-yellow-400' : 'text-gray-300'}`}
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                          ))}
-                        </div>
-                        <span className="text-sm font-medium text-gray-700">{place.rating}</span>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                        写真
                       </div>
                     )}
                   </div>
+
+                  {/* 情報 */}
+                  <div className="flex-1 p-4 flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        {place.name || '名前不明のスポット'}
+                      </h3>
+                      
+                      {/* 場所 */}
+                      <div className="flex items-center gap-1 mb-2">
+                        <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-sm text-gray-600">Fukuoka</span>
+                      </div>
+
+                      {/* タグ */}
+                      <div className="flex gap-2 mb-2">
+                        {place.category && (
+                          <span className="px-2 py-1 bg-gray-100 text-xs text-gray-700 rounded">
+                            {place.category}
+                          </span>
+                        )}
+                        {place.rating && (
+                          <span className="px-2 py-1 bg-gray-100 text-xs text-gray-700 rounded">
+                            ⭐ {place.rating}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* マッチ度と選択ボタン */}
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-sm text-gray-600">
+                        マッチ度: {Math.floor(Math.random() * 30 + 70)}%
+                      </span>
+                      <button
+                        onClick={() => handleToggleCandidate(place.place_id)}
+                        className={`px-4 py-2 rounded text-sm font-medium transition-colors duration-200 ${
+                          selectedPlaceIds.has(place.place_id)
+                            ? 'bg-blue-600 text-white hover:bg-blue-700'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {selectedPlaceIds.has(place.place_id) ? '選択済み' : '選択'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
-            
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <button
-                onClick={handleAddSelectedPlaces}
-                disabled={loading || selectedPlaceIds.size === 0}
-                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 text-base font-medium"
-              >
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>処理中...</span>
-                  </span>
-                ) : (
-                  <span>選択した{selectedPlaceIds.size}件を追加して旅程を表示</span>
-                )}
-              </button>
-            </div>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+          
+          <div className="text-center">
+            <button
+              onClick={handleAddSelectedPlaces}
+              disabled={loading || selectedPlaceIds.size === 0}
+              className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 text-base font-medium"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>処理中...</span>
+                </span>
+              ) : (
+                <span>選択した{selectedPlaceIds.size}件を追加して旅程を表示</span>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
