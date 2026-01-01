@@ -22,13 +22,14 @@ type NearbySearchService struct {
 
 // PlaceResult 周辺検索の結果
 type PlaceResult struct {
-	PlaceID       string  `json:"place_id"`
-	Name          string  `json:"name"`
-	Lat           float64 `json:"lat"`
-	Lng           float64 `json:"lng"`
-	Rating        float64 `json:"rating"`
-	PhotoReference string `json:"photo_reference,omitempty"`
+	PlaceID       string   `json:"place_id"`
+	Name          string   `json:"name"`
+	Lat           float64  `json:"lat"`
+	Lng           float64  `json:"lng"`
+	Rating        float64  `json:"rating"`
+	PhotoReference string  `json:"photo_reference,omitempty"`
 	Types         []string `json:"types,omitempty"`
+	MatchedTags   []string `json:"matched_tags,omitempty"` // この結果が見つかった検索タグ
 }
 
 // NewNearbySearchService 新しいNearbySearchServiceを作成
@@ -109,7 +110,7 @@ func (s *NearbySearchService) SearchNearby(lat, lng, radius float64, interestTag
 	}
 
 	var allResults []PlaceResult
-	seenPlaceIDs := make(map[string]bool)
+	seenPlaceIDs := make(map[string]*PlaceResult) // PlaceResultへのポインタを保持
 
 	// 各興味タグで検索
 	for _, tag := range interestTags {
@@ -152,15 +153,18 @@ func (s *NearbySearchService) SearchNearby(lat, lng, radius float64, interestTag
 			continue
 		}
 
-		// 結果を追加（重複排除）
+		// 結果を追加（重複排除、タグ情報を記録）
 		for _, r := range result.Results {
-			if !seenPlaceIDs[r.PlaceID] {
-				seenPlaceIDs[r.PlaceID] = true
+			if existing, exists := seenPlaceIDs[r.PlaceID]; exists {
+				// 既存の結果にタグを追加
+				existing.MatchedTags = append(existing.MatchedTags, tag)
+			} else {
+				// 新しい結果を作成
 				photoRef := ""
 				if len(r.Photos) > 0 {
 					photoRef = r.Photos[0].PhotoReference
 				}
-				allResults = append(allResults, PlaceResult{
+				newResult := PlaceResult{
 					PlaceID:        r.PlaceID,
 					Name:           r.Name,
 					Lat:            r.Geometry.Location.Lat,
@@ -168,7 +172,10 @@ func (s *NearbySearchService) SearchNearby(lat, lng, radius float64, interestTag
 					Rating:         r.Rating,
 					PhotoReference: photoRef,
 					Types:          r.Types,
-				})
+					MatchedTags:    []string{tag},
+				}
+				allResults = append(allResults, newResult)
+				seenPlaceIDs[r.PlaceID] = &allResults[len(allResults)-1]
 			}
 		}
 	}

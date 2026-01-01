@@ -115,10 +115,32 @@ func (u *RecommendUsecase) Recommend(req *models.RecommendRequest) (*models.Reco
 	}
 
 	// 処理フロー4: その結果を一枚の写真と共にレビューの高い順に合計10件表示する
-	// レビューでソート
-	sort.Slice(allCandidates, func(i, j int) bool {
-		return allCandidates[i].Rating > allCandidates[j].Rating
+	// まず、関連性が低い結果をフィルタリング
+	var filteredCandidates []service.PlaceResult
+	for _, candidate := range allCandidates {
+		score := calculateRelevanceScore(candidate, req.InterestTags)
+		// 関連性スコアが5.0未満の結果は除外（タグと全く関係ない可能性が高い）
+		if score >= 5.0 {
+			filteredCandidates = append(filteredCandidates, candidate)
+		}
+	}
+	
+	// タグとの関連性を考慮してソート
+	sort.Slice(filteredCandidates, func(i, j int) bool {
+		scoreI := calculateRelevanceScore(filteredCandidates[i], req.InterestTags)
+		scoreJ := calculateRelevanceScore(filteredCandidates[j], req.InterestTags)
+		
+		// 関連性スコアが同じ場合は評価で比較
+		if scoreI == scoreJ {
+			return filteredCandidates[i].Rating > filteredCandidates[j].Rating
+		}
+		
+		// 関連性スコアが高いものを優先
+		return scoreI > scoreJ
 	})
+	
+	// フィルタリング後の候補を使用
+	allCandidates = filteredCandidates
 
 	// 最大10件に制限
 	maxResults := 10
@@ -159,5 +181,60 @@ func (u *RecommendUsecase) Recommend(req *models.RecommendRequest) (*models.Reco
 	return &models.RecommendResponse{
 		Places: places,
 	}, nil
+}
+
+// calculateRelevanceScore 検索結果と検索タグの関連性スコアを計算
+// スコアが高いほど検索タグと関連性が高い
+func calculateRelevanceScore(candidate service.PlaceResult, interestTags []string) float64 {
+	score := 0.0
+	
+	// 1. MatchedTagsの数を考慮（複数のタグで見つかった場合は高スコア）
+	matchedCount := float64(len(candidate.MatchedTags))
+	score += matchedCount * 10.0 // マッチしたタグ数 × 10
+	
+	// 2. Typesフィールドと検索タグのマッピングを比較
+	// タグからGoogle Places APIのタイプへのマッピング
+	tagToTypeMap := map[string][]string{
+		"カフェ":     {"cafe", "cafe", "food", "point_of_interest", "establishment"},
+		"レストラン":  {"restaurant", "food", "point_of_interest", "establishment"},
+		"神社":      {"shrine", "place_of_worship", "point_of_interest", "establishment"},
+		"寺":       {"temple", "place_of_worship", "point_of_interest", "establishment"},
+		"公園":      {"park", "point_of_interest", "establishment"},
+		"自然":      {"park", "natural_feature", "point_of_interest", "establishment"},
+		"観光":      {"tourist_attraction", "tourist_attraction", "point_of_interest", "establishment"},
+		"ショッピング": {"shopping_mall", "store", "point_of_interest", "establishment"},
+		"博物館":     {"museum", "point_of_interest", "establishment"},
+		"美術館":     {"art_gallery", "museum", "point_of_interest", "establishment"},
+	}
+	
+	// 各検索タグについて、Typesとの一致を確認
+	for _, tag := range interestTags {
+		expectedTypes, exists := tagToTypeMap[tag]
+		if !exists {
+			continue
+		}
+		
+		// Typesフィールドに期待されるタイプが含まれているか確認
+		for _, placeType := range candidate.Types {
+			for _, expectedType := range expectedTypes {
+				if placeType == expectedType {
+					// 主要タイプ（最初の2つ）に一致する場合は高スコア
+					if placeType == expectedTypes[0] {
+						score += 20.0 // 完全一致
+					} else if len(expectedTypes) > 1 && placeType == expectedTypes[1] {
+						score += 15.0 // 準一致
+					} else {
+						score += 5.0 // 部分一致
+					}
+					break
+				}
+			}
+		}
+	}
+	
+	// 3. 評価も少し考慮（関連性が同じ場合の補助的な要素）
+	score += candidate.Rating * 0.5
+	
+	return score
 }
 
