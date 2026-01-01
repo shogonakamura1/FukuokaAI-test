@@ -33,11 +33,19 @@ func main() {
 	geocodingService := service.NewGeocodingService()
 	nearbySearchService := service.NewNearbySearchService()
 	placeDetailsService := service.NewPlaceDetailsService()
+	routeService := service.NewRouteService()
 	recommendUsecase := usecase.NewRecommendUsecase(geocodingService, nearbySearchService, placeDetailsService)
+	resultUsecase := usecase.NewResultUsecase(geocodingService, placeDetailsService, routeService)
 	recommendController := controllers.NewRecommendController(recommendUsecase)
+	addController := controllers.NewAddController()
+	resultController := controllers.NewResultController(resultUsecase)
 
 	// リコメンド機能のエンドポイント
 	router.POST("/recommend", recommendController.Recommend)
+	// 場所追加機能のエンドポイント
+	router.POST("/add/:place_id", addController.AddPlace)
+	// ルート提案機能のエンドポイント
+	router.POST("/result", resultController.Result)
 
 	port := os.Getenv("PORT")
 	if port == "" {
