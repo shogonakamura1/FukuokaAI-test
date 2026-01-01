@@ -6,11 +6,23 @@ import { useMemo } from 'react'
 import { GoogleMap, LoadScript, Marker, Polyline } from '@react-google-maps/api'
 import { Place } from './TripPlanner'
 
+interface RouteLeg {
+  start_location: { lat: number; lng: number }
+  end_location: { lat: number; lng: number }
+  distance_meters: number
+  duration: string
+}
+
+interface Route {
+  legs: RouteLeg[]
+  distance_meters: number
+  duration: string
+  optimized_order: number[]
+}
+
 interface MapViewProps {
   itinerary: Place[]
-  route?: {
-    polyline: string
-  }
+  route?: Route | null
 }
 
 const mapContainerStyle = {
@@ -76,8 +88,18 @@ export default function MapView({ itinerary, route }: MapViewProps) {
   }
 
   const routePath = useMemo(() => {
-    if (!route?.polyline) return []
-    return decodePolyline(route.polyline)
+    if (!route?.legs || route.legs.length === 0) return []
+    // legsから経路を生成（各legのstart_locationとend_locationを結ぶ）
+    const path: Array<{ lat: number; lng: number }> = []
+    route.legs.forEach((leg, index) => {
+      if (index === 0) {
+        // 最初のlegはstart_locationから開始
+        path.push(leg.start_location)
+      }
+      // end_locationを追加
+      path.push(leg.end_location)
+    })
+    return path
   }, [route])
 
   // Next.jsではprocess.env.NEXT_PUBLIC_*はクライアント側でも利用可能
@@ -93,34 +115,55 @@ export default function MapView({ itinerary, route }: MapViewProps) {
     )
   }
 
+  // マーカーのリストをメモ化してパフォーマンスを改善
+  const markers = useMemo(() => {
+    return itinerary
+      .filter(place => 
+        typeof place.lat === 'number' && typeof place.lng === 'number' &&
+        !isNaN(place.lat) && !isNaN(place.lng) &&
+        isFinite(place.lat) && isFinite(place.lng)
+      )
+      .map((place, index) => ({
+        id: place.id || place.place_id || `marker-${index}`,
+        position: { lat: place.lat, lng: place.lng },
+        label: String(index + 1),
+        title: place.name,
+      }))
+  }, [itinerary])
+
+  // ポリラインのオプションをメモ化
+  const polylineOptions = useMemo(() => ({
+    strokeColor: '#3b82f6',
+    strokeWeight: 4,
+  }), [])
+
   return (
-    <LoadScript googleMapsApiKey={googleMapsApiKey}>
+    <LoadScript 
+      googleMapsApiKey={googleMapsApiKey}
+      loadingElement={<div className="w-full h-full flex items-center justify-center">読み込み中...</div>}
+    >
       <GoogleMap
         mapContainerStyle={mapContainerStyle}
         center={mapCenter}
         zoom={12}
+        options={{
+          // パフォーマンス改善のためのオプション
+          disableDefaultUI: false,
+          zoomControl: true,
+        }}
       >
-        {itinerary
-          .filter(place => 
-            typeof place.lat === 'number' && typeof place.lng === 'number' &&
-            !isNaN(place.lat) && !isNaN(place.lng) &&
-            isFinite(place.lat) && isFinite(place.lng)
-          )
-          .map((place, index) => (
-            <Marker
-              key={place.id || place.place_id || `marker-${index}`}
-              position={{ lat: place.lat, lng: place.lng }}
-              label={String(index + 1)}
-              title={place.name}
-            />
-          ))}
+        {markers.map((marker) => (
+          <Marker
+            key={marker.id}
+            position={marker.position}
+            label={marker.label}
+            title={marker.title}
+          />
+        ))}
         {routePath.length > 0 && (
           <Polyline
             path={routePath}
-            options={{
-              strokeColor: '#3b82f6',
-              strokeWeight: 4,
-            }}
+            options={polylineOptions}
           />
         )}
       </GoogleMap>

@@ -40,10 +40,11 @@ GOOGLE_CLIENT_SECRET=your_google_client_secret_here
    - https://console.cloud.google.com/ にアクセス
    - プロジェクトを作成または選択
    - 「APIとサービス」→「認証情報」からAPIキーを作成
-   - 以下のAPIを有効化：
-     - Places API
-     - Directions API
-     - Maps JavaScript API
+   - 以下のAPIを有効化（重要）：
+     - **Places API** (Places API (New) または Places API)
+     - **Routes API** (Routes API (v2)) - ルート計算に必要
+     - **Maps JavaScript API** - 地図表示に必要
+   - 注意: Routes APIが有効化されていないと、ルート計算時に403エラーが発生します
 
 2. **OpenAI API キー**
    - https://platform.openai.com/api-keys にアクセス

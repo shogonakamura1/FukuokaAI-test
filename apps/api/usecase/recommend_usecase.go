@@ -142,8 +142,8 @@ func (u *RecommendUsecase) Recommend(req *models.RecommendRequest) (*models.Reco
 	// フィルタリング後の候補を使用
 	allCandidates = filteredCandidates
 
-	// 最大10件に制限
-	maxResults := 10
+	// 最大4件に制限
+	maxResults := 4
 	if len(allCandidates) > maxResults {
 		allCandidates = allCandidates[:maxResults]
 	}

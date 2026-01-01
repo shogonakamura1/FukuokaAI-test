@@ -56,8 +56,9 @@ func (s *GeocodingService) GetCoordinates(placeName string) (lat, lng float64, p
 		return 0, 0, "", fmt.Errorf("GOOGLE_MAPS_API_KEY is not set")
 	}
 
-	// 博多駅のデフォルト値
-	if placeName == "" || placeName == "Hakata Station" || placeName == "博多駅" {
+	// 博多駅のデフォルト値（place_idも取得するため、通常の検索を実行）
+	// 空文字列の場合はデフォルト値を返す
+	if placeName == "" {
 		return 33.5904, 130.4208, "", nil
 	}
 

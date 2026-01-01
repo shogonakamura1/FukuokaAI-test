@@ -43,11 +43,11 @@ func (u *ResultUsecase) ComputeOptimizedRoute(req *models.ResultRequest) (*model
 	var places []models.Place
 	var waypoints []service.Waypoint
 
-	for _, placeID := range req.Places {
+	for i, placeID := range req.Places {
 		details, err := u.placeDetailsService.GetPlaceDetails(placeID, "")
 		if err != nil {
-			// 詳細取得に失敗した場所はスキップ
-			continue
+			// 詳細取得に失敗した場所はエラーメッセージに含める
+			return nil, fmt.Errorf("場所[%d] (place_id: %s) の詳細取得に失敗しました: %w", i, placeID, err)
 		}
 
 		places = append(places, models.Place{
@@ -104,19 +104,19 @@ func (u *ResultUsecase) ComputeOptimizedRoute(req *models.ResultRequest) (*model
 	routeData := routeResp.Routes[0]
 
 	// 3. 最適化された順序に従って場所を並び替え
-	// OptimizedOrderは経由地点（intermediates）の順序のみを表す
+	// OptimizedIntermediateWaypointIndexは経由地点（intermediates）の順序のみを表す
 	// origin（最初）とdestination（最後）は順序に含まれない
 	optimizedPlaces := make([]models.Place, 0, len(places))
 	
 	// 最初にorigin（最初の場所）を追加
 	optimizedPlaces = append(optimizedPlaces, places[0])
 	
-	if len(routeData.OptimizedOrder) > 0 && len(intermediates) > 0 {
+	if len(routeData.OptimizedIntermediateWaypointIndex) > 0 && len(intermediates) > 0 {
 		// 最適化された順序を使用して経由地点を追加
-		// OptimizedOrderは経由地点の元のインデックス（リクエスト時の順序）の配列
+		// OptimizedIntermediateWaypointIndexは経由地点の元のインデックス（リクエスト時の順序）の配列
 		// この配列の順序が最適化された順序を表す
-		// 例: OptimizedOrder = [2, 0, 1] の場合、元の2番目、0番目、1番目の順で訪問
-		for _, originalIntermediateIdx := range routeData.OptimizedOrder {
+		// 例: OptimizedIntermediateWaypointIndex = [2, 0, 1] の場合、元の2番目、0番目、1番目の順で訪問
+		for _, originalIntermediateIdx := range routeData.OptimizedIntermediateWaypointIndex {
 			// intermediatesのインデックスをplacesのインデックスに変換（+1はoriginの分）
 			placeIdx := originalIntermediateIdx + 1
 			if placeIdx > 0 && placeIdx < len(places)-1 { // destinationより前
@@ -152,7 +152,8 @@ func (u *ResultUsecase) ComputeOptimizedRoute(req *models.ResultRequest) (*model
 		})
 	}
 
-	optimizedOrder := routeData.OptimizedOrder
+	// Routes API v2では、OptimizedIntermediateWaypointIndexから最適化された順序を取得
+	optimizedOrder := routeData.OptimizedIntermediateWaypointIndex
 	if len(optimizedOrder) == 0 && len(intermediates) > 0 {
 		// 最適化されていない場合は経由地点の元の順序（0から始まる連番）
 		optimizedOrder = make([]int, len(intermediates))

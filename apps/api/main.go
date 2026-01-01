@@ -39,6 +39,7 @@ func main() {
 	recommendController := controllers.NewRecommendController(recommendUsecase)
 	addController := controllers.NewAddController()
 	resultController := controllers.NewResultController(resultUsecase)
+	geocodingController := controllers.NewGeocodingController(geocodingService)
 
 	// リコメンド機能のエンドポイント
 	router.POST("/recommend", recommendController.Recommend)
@@ -46,6 +47,8 @@ func main() {
 	router.POST("/add/:place_id", addController.AddPlace)
 	// ルート提案機能のエンドポイント
 	router.POST("/result", resultController.Result)
+	// ジオコーディング機能のエンドポイント（場所名からplace_idを取得）
+	router.POST("/geocoding", geocodingController.GetPlaceID)
 
 	port := os.Getenv("PORT")
 	if port == "" {
