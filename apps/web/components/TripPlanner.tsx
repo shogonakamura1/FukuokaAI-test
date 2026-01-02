@@ -364,6 +364,8 @@ export default function TripPlanner() {
     setError(null)
   }
 
+  console.log('TripPlanner render - itinerary length:', itinerary.length, 'route:', route ? 'exists' : 'null')
+  
   return (
     <div className="flex h-[calc(100vh-80px)]">
       <div className="w-1/2 overflow-y-auto p-4">

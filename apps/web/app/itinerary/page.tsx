@@ -17,24 +17,33 @@ export default function ItineraryPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    console.log('ItineraryPage useEffect executed')
     // sessionStorageから旅程データを取得
     const storedItinerary = sessionStorage.getItem('itinerary')
     const storedRoute = sessionStorage.getItem('route')
+    
+    console.log('ItineraryPage - storedItinerary:', storedItinerary ? 'exists' : 'not found')
+    console.log('ItineraryPage - storedRoute:', storedRoute ? 'exists' : 'not found')
 
     if (storedItinerary) {
       try {
-        setItinerary(JSON.parse(storedItinerary))
+        const parsed = JSON.parse(storedItinerary)
+        console.log('ItineraryPage - parsed itinerary:', parsed.length, 'places')
+        setItinerary(parsed)
       } catch (e) {
         console.error('Failed to parse itinerary:', e)
         setError('旅程データの読み込みに失敗しました')
       }
     } else {
+      console.log('ItineraryPage - no itinerary found in sessionStorage')
       setError('旅程データが見つかりません')
     }
 
     if (storedRoute) {
       try {
-        setRoute(JSON.parse(storedRoute))
+        const parsed = JSON.parse(storedRoute)
+        console.log('ItineraryPage - parsed route:', parsed)
+        setRoute(parsed)
       } catch (e) {
         console.error('Failed to parse route:', e)
       }
@@ -43,7 +52,10 @@ export default function ItineraryPage() {
     setLoading(false)
   }, [])
 
+  console.log('ItineraryPage render - loading:', loading, 'error:', error, 'itinerary length:', itinerary.length)
+
   if (loading) {
+    console.log('ItineraryPage - showing loading state')
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
@@ -55,6 +67,7 @@ export default function ItineraryPage() {
   }
 
   if (error) {
+    console.log('ItineraryPage - showing error state:', error)
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center max-w-md">
@@ -70,6 +83,7 @@ export default function ItineraryPage() {
     )
   }
 
+  console.log('ItineraryPage - rendering MapView with itinerary:', itinerary.length, 'places')
   return (
     <div className="min-h-screen bg-white">
       <Header />

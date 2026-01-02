@@ -34,7 +34,11 @@ body {
   .animate-slide-up {
     animation: slideUp 0.3s ease-out;
   }
+  
+  /* TailwindのユーティリティクラスがBootstrapを上書きできるようにする */
+  /* Tailwindのユーティリティクラスは通常、後から読み込まれるため上書きできるが、念のためここで定義 */
 }
+
 
 @keyframes fadeIn {
   from {

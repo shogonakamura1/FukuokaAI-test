@@ -1,28 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useSession, signIn } from 'next-auth/react'
-import TripForm from '@/components/TripForm'
+import RecommendPage from '@/components/RecommendPage'
 import Header from '@/components/Header'
 
-export default function Home() {
+export default function RecommendRoute() {
   const { data: session, status } = useSession()
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-
-  const handleFormSubmit = async (data: {
-    must_places: string[]
-    interest_tags: string[]
-    start_place: string
-    goal_place: string
-    free_text?: string
-  }) => {
-    // フォームデータをsessionStorageに保存
-    sessionStorage.setItem('formData', JSON.stringify(data))
-    // /recommendに遷移
-    router.push('/recommend')
-  }
 
   if (status === 'loading') {
     return (
@@ -60,18 +43,10 @@ export default function Home() {
       <Header />
       <main className="w-full flex items-center min-h-[calc(100vh-73px)]">
         <div className="w-full flex justify-center">
-          <div className="w-full max-w-2xl bg-white px-6 py-12">
-            <div className="mb-5 mt-4">
-              <h1 className="text-2xl font-medium text-gray-900 mb-5 text-center">
-                AIが最適な旅程を提案します。
-              </h1>
-            </div>
-            <TripForm onSubmit={handleFormSubmit} loading={loading} />
-          </div>
+          <RecommendPage />
         </div>
       </main>
     </div>
   )
 }
-
 

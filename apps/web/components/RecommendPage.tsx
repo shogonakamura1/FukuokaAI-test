@@ -1,12 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import TripForm from './TripForm'
 import { Place } from './TripPlanner'
-import Header from './Header'
 
 export default function RecommendPage() {
+  console.log('=== RecommendPage component rendered ===')
   const router = useRouter()
   const [recommendedPlaces, setRecommendedPlaces] = useState<Place[]>([])
   const [selectedPlaceIds, setSelectedPlaceIds] = useState<Set<string>>(new Set())
@@ -118,6 +117,28 @@ export default function RecommendPage() {
       setLoading(false)
     }
   }
+
+  // sessionStorageからフォームデータを読み取り、APIを呼び出す
+  useEffect(() => {
+    const loadFormDataAndFetch = async () => {
+      const formDataStr = sessionStorage.getItem('formData')
+      if (!formDataStr) {
+        setError('フォームデータが見つかりません')
+        return
+      }
+
+      try {
+        const formData = JSON.parse(formDataStr)
+        await handleGenerateTrip(formData)
+      } catch (err) {
+        console.error('フォームデータの読み込みエラー:', err)
+        setError('フォームデータの読み込みに失敗しました')
+      }
+    }
+
+    loadFormDataAndFetch()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 候補地の選択/選択解除
   const handleToggleCandidate = (placeId: string) => {
@@ -251,8 +272,11 @@ export default function RecommendPage() {
       })
 
       // sessionStorageに保存して旅程ページへ遷移
+      console.log('=== RecommendPage: Saving to sessionStorage and navigating to /itinerary ===')
+      console.log('Itinerary places:', optimizedPlaces.length)
       sessionStorage.setItem('itinerary', JSON.stringify(optimizedPlaces))
       sessionStorage.setItem('route', JSON.stringify(result.route || null))
+      console.log('Navigating to /itinerary...')
       router.push('/itinerary')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'エラーが発生しました')
@@ -260,6 +284,16 @@ export default function RecommendPage() {
       setLoading(false)
     }
   }
+
+  // 各場所のマッチ度を一度だけ計算して保持（recommendedPlacesが変更されたときのみ再計算）
+  const matchScores = useMemo(() => {
+    const scores: Record<string, number> = {}
+    recommendedPlaces.forEach((place) => {
+      // place_idをキーとして使用し、一度だけ計算した値を保持
+      scores[place.place_id] = Math.floor(Math.random() * 30 + 70)
+    })
+    return scores
+  }, [recommendedPlaces])
 
   const getNumberBadgeColor = (index: number) => {
     const colors = [
@@ -272,7 +306,7 @@ export default function RecommendPage() {
   }
 
   return (
-    <div className="w-full max-w-2xl bg-white">
+    <div className="bg-white">
       {error && (
         <div className="max-w-4xl mx-auto px-6 pt-6">
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -281,36 +315,31 @@ export default function RecommendPage() {
         </div>
       )}
 
-      {recommendedPlaces.length === 0 ? (
-        <div className="px-6 py-12">
-          <div className="mb-5 mt-4">
-            <h1 className="text-2xl font-medium text-gray-900 mb-5 text-center">
-              AIが最適な旅程を提案します。
-            </h1>
-          </div>
-          <TripForm onSubmit={handleGenerateTrip} loading={loading} />
+      {loading ? (
+        <div className="px-6 py-12 text-center">
+          <div className="text-gray-400 text-base">読み込み中...</div>
         </div>
-      ) : (
-        <div className="max-w-4xl mx-auto px-6 py-8">
-          <div className="mb-8">
-            <h2 className="text-2xl font-medium text-gray-900 text-center mb-8">
+      ) : recommendedPlaces.length > 0 ? (
+        <div className="py-5">
+          <div className="mb-10">
+            <h2 className="text-center">
               AIはここを提案します
             </h2>
           </div>
-          
-          <div className="space-y-6 mb-8">
+
+          <div className="space-y-6 mb-8 flex flex-col items-center">
             {recommendedPlaces.map((place, index) => (
               <div
                 key={place.place_id || `candidate-${index}`}
-                className="bg-white border border-gray-300 rounded-lg overflow-hidden"
+                className=""
               >
-                <div className="flex">
+                <div className="flex mx-auto" style={{ width: "600px" }}>
                   {/* 写真 */}
                   <div className="w-32 h-32 flex-shrink-0 bg-gray-200">
                     {place.photo_url ? (
                       <img
                         src={place.photo_url}
-                        alt={place.name || 'スポット画像'}
+                        alt={place.name || "スポット画像"}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -324,14 +353,24 @@ export default function RecommendPage() {
                   <div className="flex-1 p-4 flex flex-col justify-between">
                     <div>
                       <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        {place.name || '名前不明のスポット'}
+                        {place.name || "名前不明のスポット"}
                       </h3>
-                      
+
                       {/* 場所 */}
                       <div className="flex items-center gap-1 mb-2">
-                        <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                        </svg>
+                        <img
+                          src="/image/mappin.png"
+                          alt="場所"
+                          className="object-contain"
+                          style={{
+                            width: "20px",
+                            height: "20px",
+                            maxWidth: "20px",
+                            maxHeight: "20px",
+                            backgroundColor: "transparent",
+                            mixBlendMode: "multiply",
+                          }}
+                        />
                         <span className="text-sm text-gray-600">Fukuoka</span>
                       </div>
 
@@ -353,17 +392,19 @@ export default function RecommendPage() {
                     {/* マッチ度と選択ボタン */}
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-sm text-gray-600">
-                        マッチ度: {Math.floor(Math.random() * 30 + 70)}%
+                        マッチ度: {matchScores[place.place_id] || 70}%
                       </span>
                       <button
                         onClick={() => handleToggleCandidate(place.place_id)}
                         className={`px-4 py-2 rounded text-sm font-medium transition-colors duration-200 ${
                           selectedPlaceIds.has(place.place_id)
-                            ? 'bg-blue-600 text-white hover:bg-blue-700'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            ? "bg-blue-600 text-white hover:bg-blue-700"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                         }`}
                       >
-                        {selectedPlaceIds.has(place.place_id) ? '選択済み' : '選択'}
+                        {selectedPlaceIds.has(place.place_id)
+                          ? "選択済み"
+                          : "選択"}
                       </button>
                     </div>
                   </div>
@@ -371,7 +412,7 @@ export default function RecommendPage() {
               </div>
             ))}
           </div>
-          
+
           <div className="text-center">
             <button
               onClick={handleAddSelectedPlaces}
@@ -380,19 +421,37 @@ export default function RecommendPage() {
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin h-5 w-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
                   </svg>
                   <span>処理中...</span>
                 </span>
               ) : (
-                <span>選択した{selectedPlaceIds.size}件を追加して旅程を表示</span>
+                <span>
+                  選択した{selectedPlaceIds.size}件を追加して旅程を表示
+                </span>
               )}
             </button>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
-  )
+  );
 }
