@@ -23,6 +23,7 @@ export interface Place {
   rating?: number
   address?: string
   travel_time_from_previous?: string // 前の地点からの移動時間
+  relevance_score?: number // 関連性スコア
 }
 
 export interface Route {

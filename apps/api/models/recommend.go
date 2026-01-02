@@ -10,20 +10,22 @@ type RecommendRequest struct {
 
 // Place 場所情報
 type Place struct {
-	PlaceID       string  `json:"place_id"`
-	Name          string  `json:"name"`
-	Lat           float64 `json:"lat"`
-	Lng           float64 `json:"lng"`
-	PhotoURL      string  `json:"photo_url,omitempty"`
-	Rating        float64 `json:"rating,omitempty"`
-	ReviewSummary string  `json:"review_summary,omitempty"`
-	Category      string  `json:"category,omitempty"`
-	Address       string  `json:"address,omitempty"`
+	PlaceID        string  `json:"place_id"`
+	Name           string  `json:"name"`
+	Lat            float64 `json:"lat"`
+	Lng            float64 `json:"lng"`
+	PhotoURL       string  `json:"photo_url,omitempty"`
+	Rating         float64 `json:"rating,omitempty"`
+	ReviewSummary  string  `json:"review_summary,omitempty"`
+	Category       string  `json:"category,omitempty"`
+	Address        string  `json:"address,omitempty"`
+	RelevanceScore float64 `json:"relevance_score,omitempty"` // 関連性スコア
 }
 
 // RecommendResponse リコメンド機能のレスポンス
 type RecommendResponse struct {
-	Places []Place `json:"places"` // 推薦場所（最大10件、レビュー順）
+	Places           []Place `json:"places"`             // 推薦場所（最大10件、レビュー順）
+	MaxPossibleScore float64 `json:"max_possible_score"` // 理論的最大スコア
 }
 
 // Coordinate 座標情報

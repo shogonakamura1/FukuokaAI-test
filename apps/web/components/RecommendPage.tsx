@@ -14,6 +14,7 @@ export default function RecommendPage() {
   const [goalPlace, setGoalPlace] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [maxPossibleScore, setMaxPossibleScore] = useState<number>(100) // 理論的最大スコア（デフォルト100）
 
   const apiUrl = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_URL) || 'http://localhost:8080'
 
@@ -87,9 +88,12 @@ export default function RecommendPage() {
           review_summary: place.review_summary,
           category: place.category,
           address: place.address,
+          relevance_score: place.relevance_score,
         }))
 
       setRecommendedPlaces(places)
+      // 理論的最大スコアを保存（デフォルト値100を設定）
+      setMaxPossibleScore(result.max_possible_score || 100)
       setStartPlace(data.start_place)
       setGoalPlace(data.goal_place)
 
@@ -285,15 +289,29 @@ export default function RecommendPage() {
     }
   }
 
-  // 各場所のマッチ度を一度だけ計算して保持（recommendedPlacesが変更されたときのみ再計算）
+  // 各場所のマッチ度を100%表示に変換（理論的最大スコアを使って絶対評価）
   const matchScores = useMemo(() => {
     const scores: Record<string, number> = {}
+    
+    if (maxPossibleScore <= 0) {
+      // 理論的最大スコアが無効な場合は全て70%を表示
+      recommendedPlaces.forEach((place) => {
+        scores[place.place_id] = 70
+      })
+      return scores
+    }
+    
+    // 理論的最大スコアを100%として、各スコアをパーセンテージに変換（絶対評価）
     recommendedPlaces.forEach((place) => {
-      // place_idをキーとして使用し、一度だけ計算した値を保持
-      scores[place.place_id] = Math.floor(Math.random() * 30 + 70)
+      const score = place.relevance_score || 0
+      // 理論的最大スコアを100%として計算
+      const percentage = Math.round((score / maxPossibleScore) * 100)
+      // 0%以上100%以下に制限
+      scores[place.place_id] = Math.min(100, Math.max(0, percentage))
     })
+    
     return scores
-  }, [recommendedPlaces])
+  }, [recommendedPlaces, maxPossibleScore])
 
   const getNumberBadgeColor = (index: number) => {
     const colors = [

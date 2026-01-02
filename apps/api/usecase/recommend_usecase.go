@@ -148,38 +148,57 @@ func (u *RecommendUsecase) Recommend(req *models.RecommendRequest) (*models.Reco
 		allCandidates = allCandidates[:maxResults]
 	}
 
+	// 各候補のスコアを計算してマップに保存
+	candidateScores := make(map[string]float64)
+	for _, candidate := range allCandidates {
+		score := calculateRelevanceScore(candidate, req.InterestTags)
+		candidateScores[candidate.PlaceID] = score
+	}
+
 	// Place Details APIで詳細情報を取得
 	var places []models.Place
 	for _, candidate := range allCandidates {
+		// スコアを取得
+		score := candidateScores[candidate.PlaceID]
+
 		details, err := u.placeDetailsService.GetPlaceDetails(candidate.PlaceID, candidate.PhotoReference)
 		if err != nil {
 			// 詳細取得に失敗した場合は基本情報のみを使用
 			places = append(places, models.Place{
-				PlaceID:  candidate.PlaceID,
-				Name:     candidate.Name,
-				Lat:      candidate.Lat,
-				Lng:      candidate.Lng,
-				Rating:   candidate.Rating,
-				PhotoURL: "", // 写真URLは取得できない
+				PlaceID:        candidate.PlaceID,
+				Name:           candidate.Name,
+				Lat:            candidate.Lat,
+				Lng:            candidate.Lng,
+				Rating:         candidate.Rating,
+				PhotoURL:       "", // 写真URLは取得できない
+				RelevanceScore: score,
 			})
 			continue
 		}
 
 		places = append(places, models.Place{
-			PlaceID:       details.PlaceID,
-			Name:          details.Name,
-			Lat:           details.Lat,
-			Lng:           details.Lng,
-			PhotoURL:      details.PhotoURL,
-			Rating:        details.Rating,
-			ReviewSummary: details.ReviewSummary,
-			Category:      details.Category,
-			Address:       details.Address,
+			PlaceID:        details.PlaceID,
+			Name:           details.Name,
+			Lat:            details.Lat,
+			Lng:            details.Lng,
+			PhotoURL:       details.PhotoURL,
+			Rating:         details.Rating,
+			ReviewSummary:  details.ReviewSummary,
+			Category:       details.Category,
+			Address:        details.Address,
+			RelevanceScore: score,
 		})
 	}
 
+	// 理論的最大スコアを計算
+	// スコア計算式: MatchedTags数×10.0 + Typesマッチング（各タグ最大20.0）+ Rating×0.5（最大2.5）
+	// 理論的最大値 = タグ数 × (10.0 + 20.0) + 2.5 = タグ数 × 30.0 + 2.5
+	tagCount := float64(len(req.InterestTags))
+	maxPossibleScore := tagCount*30.0 + 2.5
+
 	return &models.RecommendResponse{
-		Places: places,
+		Places:           places,
+		MaxPossibleScore: maxPossibleScore,
 	}, nil
 }
 
